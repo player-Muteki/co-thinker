@@ -218,11 +218,18 @@ def render_docs_tab() -> None:
         uploaded_files = st.file_uploader(
             "上传知识库文档",
             type=[
-                "md", "mdx", "txt", "py", "js", "ts", "tsx",
+                "md", "mdx", "txt", "py", "js", "jsx", "ts", "tsx",
                 "java", "go", "rs", "c", "cpp", "h", "cs", "php", "rb",
+                "json", "yaml", "yml", "toml", "xml", "csv", "sql", "log",
                 "pdf", "docx", "pptx",
             ],
             accept_multiple_files=True,
+        )
+        st.caption(
+            "支持格式：代码 / 文档 / 数据 "
+            "(.md .txt .py .js .jsx .ts .tsx .java .go .rs .c .cpp .h .cs .php .rb "
+            ".json .yaml .yml .toml .xml .csv .sql .log) "
+            "及办公文档 (.pdf .docx .pptx)"
         )
         tags_raw = st.text_input("标签（逗号分隔，可选）", placeholder="例如：docs, guide, report")
         tags = [item.strip() for item in tags_raw.split(",") if item.strip()]

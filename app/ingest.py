@@ -17,6 +17,8 @@ from config import Settings, ensure_directories
 SUPPORTED_EXTENSIONS = {
     ".c", ".cpp", ".cs", ".go", ".h", ".java", ".js", ".jsx",
     ".md", ".mdx", ".php", ".py", ".rb", ".rs", ".ts", ".tsx", ".txt",
+    ".json", ".yaml", ".yml", ".toml", ".xml",
+    ".csv", ".sql", ".log",
     ".pdf", ".docx", ".pptx",
 }
 
