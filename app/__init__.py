@@ -11,6 +11,15 @@ from app.ingest import (
     JsonVectorStore,
     VectorStore,
 )
+from app.parser import (
+    DocxParser,
+    DocumentParser,
+    PARSER_REGISTRY,
+    PDFParser,
+    PPTXParser,
+    TEXT_EXTENSIONS,
+    TextParser,
+)
 from app.retriever import (
     HybridRetriever,
     RetrievalResult,
@@ -23,6 +32,8 @@ __all__ = [
     "ChunkRecord",
     "Conversation",
     "DocumentManifest",
+    "DocumentParser",
+    "DocxParser",
     "FileIngestResult",
     "GenerationResult",
     "HybridRetriever",
@@ -30,10 +41,15 @@ __all__ = [
     "IngestSummary",
     "JsonVectorStore",
     "Message",
+    "PARSER_REGISTRY",
+    "PDFParser",
+    "PPTXParser",
     "RAGGenerator",
     "RetrievalResult",
     "RetrievalResults",
     "Settings",
     "SourceReference",
+    "TEXT_EXTENSIONS",
+    "TextParser",
     "VectorStore",
 ]

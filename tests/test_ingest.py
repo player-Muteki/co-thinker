@@ -71,3 +71,52 @@ def test_delete_file_removes_manifest_and_chunks(tmp_path: Path) -> None:
     assert result.status == "deleted"
     assert engine.get_index_stats()["chunk_count"] == 0
     assert engine.list_documents() == []
+
+
+def test_add_pdf_file(tmp_path: Path) -> None:
+    from tests.conftest import make_pdf_bytes
+
+    settings = make_settings(tmp_path)
+    source = settings.data_dir / "test.pdf"
+    source.write_bytes(make_pdf_bytes("PDF test content " * 20))
+
+    engine = IngestionEngine(settings)
+    summary = engine.add_files([source])
+
+    assert summary.indexed_files == 1
+    assert summary.total_chunks >= 1
+    stats = engine.get_index_stats()
+    assert stats["chunk_count"] >= 1
+    assert stats["indexed_document_count"] >= 1
+
+
+def test_add_docx_file(tmp_path: Path) -> None:
+    from tests.conftest import make_docx_bytes
+
+    settings = make_settings(tmp_path)
+    source = settings.data_dir / "test.docx"
+    source.write_bytes(make_docx_bytes("DOCX test content " * 20))
+
+    engine = IngestionEngine(settings)
+    summary = engine.add_files([source])
+
+    assert summary.indexed_files == 1
+    assert summary.total_chunks >= 1
+    stats = engine.get_index_stats()
+    assert stats["chunk_count"] >= 1
+
+
+def test_add_pptx_file(tmp_path: Path) -> None:
+    from tests.conftest import make_pptx_bytes
+
+    settings = make_settings(tmp_path)
+    source = settings.data_dir / "test.pptx"
+    source.write_bytes(make_pptx_bytes("PPTX test content " * 20))
+
+    engine = IngestionEngine(settings)
+    summary = engine.add_files([source])
+
+    assert summary.indexed_files == 1
+    assert summary.total_chunks >= 1
+    stats = engine.get_index_stats()
+    assert stats["chunk_count"] >= 1

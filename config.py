@@ -55,6 +55,7 @@ class Settings:
     log_level: str
     embedding_model_name: str
     embedding_base_url: str
+    parser_engine: str
 
 
 def load_settings(overrides: dict[str, Any] | None = None) -> Settings:
@@ -80,7 +81,8 @@ def load_settings(overrides: dict[str, Any] | None = None) -> Settings:
         max_history_turns=_get_int("MAX_HISTORY_TURNS", 10),
         log_level=_get_str("LOG_LEVEL", "INFO"),
         embedding_model_name=_get_str("EMBEDDING_MODEL_NAME", ""),
-        embedding_base_url=_get_str("EMBEDDING_BASE_URL", ""),
+        embedding_base_url=_get_str("EMBEDDING_BASE_URL", "https://api.openai.com/v1"),
+        parser_engine=_get_str("PARSER_ENGINE", "auto"),
     )
     if not overrides:
         return settings

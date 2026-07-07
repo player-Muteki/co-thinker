@@ -8,26 +8,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from app.parser import DocumentParser, PARSER_REGISTRY
 from config import Settings, ensure_directories
 
 SUPPORTED_EXTENSIONS = {
-    ".c",
-    ".cpp",
-    ".cs",
-    ".go",
-    ".h",
-    ".java",
-    ".js",
-    ".jsx",
-    ".md",
-    ".mdx",
-    ".php",
-    ".py",
-    ".rb",
-    ".rs",
-    ".ts",
-    ".tsx",
-    ".txt",
+    ".c", ".cpp", ".cs", ".go", ".h", ".java", ".js", ".jsx",
+    ".md", ".mdx", ".php", ".py", ".rb", ".rs", ".ts", ".tsx", ".txt",
+    ".pdf", ".docx", ".pptx",
 }
 
 SKIP_DIR_NAMES = {".git", ".hg", ".svn", "__pycache__", "vectorstore", "storage"}
@@ -234,12 +221,13 @@ class JsonVectorStore(VectorStore):
 
 
 class IngestionEngine:
-    def __init__(self, settings: Settings, embedding_model: Any | None = None, vector_store: Any | None = None):
+    def __init__(self, settings: Settings, embedding_model: Any | None = None, vector_store: Any | None = None, parser_registry: dict[str, DocumentParser] | None = None):
         self.settings = settings
         ensure_directories(settings)
         self.embedding_model = embedding_model
         self.vector_store = vector_store or JsonVectorStore(settings.vectorstore_dir / "chunks.json")
         self.manifest = DocumentManifest(settings.storage_dir / "document_manifest.json")
+        self.parser_registry = parser_registry if parser_registry is not None else PARSER_REGISTRY
 
     def scan_files(self, root_dir: str | Path | None = None) -> list[Path]:
         root = Path(root_dir) if root_dir is not None else self.settings.data_dir
@@ -308,7 +296,7 @@ class IngestionEngine:
                     )
                     continue
 
-                text = self._decode_text(file_bytes)
+                text = self._extract_text(path, file_bytes, path.suffix.lower())
                 normalized = normalize_text(text)
                 if not normalized:
                     raise ValueError("File is empty after normalization")
@@ -555,17 +543,11 @@ class IngestionEngine:
 
         return chunks
 
-    def _decode_text(self, file_bytes: bytes) -> str:
-        encodings = ("utf-8", "utf-8-sig", "gb18030", "latin-1")
-        for encoding in encodings:
-            try:
-                return file_bytes.decode(encoding)
-            except UnicodeDecodeError:
-                continue
-        # All encodings failed
-        raise ValueError(
-            f"Unable to decode file with any of {encodings}"
-        )
+    def _extract_text(self, path: Path, file_bytes: bytes, file_ext: str) -> str:
+        parser = self.parser_registry.get(file_ext)
+        if parser is None:
+            raise ValueError(f"No parser registered for extension: {file_ext}")
+        return parser.parse(file_bytes, file_ext)
 
     def _embed_chunks(self, texts: list[str]) -> list[list[float] | None]:
         if not texts:
