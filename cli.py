@@ -179,6 +179,8 @@ def start(
         typer.echo("")
 
     env = os.environ.copy()
+    env["STREAMLIT_BROWSER_GATHER_USAGE_STATS"] = "false"
+    env["STREAMLIT_GATHER_USAGE_STATS"] = "false"
 
     cmd = [
         sys.executable,
