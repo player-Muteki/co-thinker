@@ -26,9 +26,13 @@ class FakeEmbeddingModel:
 
 class _Choice:
     """Mock a single chat completion choice."""
-    def __init__(self, content: str):
-        self.message = _Message(content)
-        self.delta = _Delta(content)
+    def __init__(self, content: str, for_stream: bool = False):
+        if for_stream:
+            # Streaming chunks only have a delta, no message field
+            self.delta = _Delta(content)
+        else:
+            # Non-streaming responses only have a message, no delta field
+            self.message = _Message(content)
 
 
 class _Message:
@@ -42,9 +46,9 @@ class _Delta:
 
 
 class _Chunk:
-    """Mock a streaming chunk."""
+    """Mock a streaming chunk — only delta, no message."""
     def __init__(self, content: str):
-        self.choices = [_Choice(content)]
+        self.choices = [_Choice(content, for_stream=True)]
 
 
 class _Response:

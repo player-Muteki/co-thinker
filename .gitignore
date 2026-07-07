@@ -20,13 +20,15 @@ Thumbs.db
 .env
 *.env.local
 
-# Data
+# Data (runtime only)
 *.db
 *.sqlite
-data/
 uploads/
 vectorstore/
 storage/
+
+# Data (sampled knowledge docs — keep in git, remove if sample is too large)
+# data/  # uncomment if data files are generated/downloaded, not source-controlled
 
 # Logs
 *.log

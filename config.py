@@ -18,7 +18,8 @@ def _load_env_file() -> None:
 
 def _get_str(name: str, default: str) -> str:
     value = os.getenv(name)
-    return default if value is None else value
+    # Treat empty string same as unset — avoids silent "" values for required config
+    return default if value is None or value == "" else value
 
 
 def _get_int(name: str, default: int) -> int:
@@ -52,6 +53,8 @@ class Settings:
     context_token_budget: int
     max_history_turns: int
     log_level: str
+    embedding_model_name: str
+    embedding_base_url: str
 
 
 def load_settings(overrides: dict[str, Any] | None = None) -> Settings:
@@ -76,6 +79,8 @@ def load_settings(overrides: dict[str, Any] | None = None) -> Settings:
         context_token_budget=_get_int("CONTEXT_TOKEN_BUDGET", 6000),
         max_history_turns=_get_int("MAX_HISTORY_TURNS", 10),
         log_level=_get_str("LOG_LEVEL", "INFO"),
+        embedding_model_name=_get_str("EMBEDDING_MODEL_NAME", ""),
+        embedding_base_url=_get_str("EMBEDDING_BASE_URL", "https://api.openai.com/v1"),
     )
     if not overrides:
         return settings
@@ -100,6 +105,11 @@ def validate_settings(settings: Settings) -> None:
         raise ValueError("TEMPERATURE must be between 0 and 2")
     if settings.max_history_turns < 1:
         raise ValueError("MAX_HISTORY_TURNS must be at least 1")
+    if settings.embedding_model_name and settings.embedding_base_url == settings.deepseek_base_url and "deepseek" in settings.embedding_base_url:
+        import warnings as _w
+        _w.warn("EMBEDDING_BASE_URL points to DeepSeek, which does not provide embedding endpoints. "
+                 "Set EMBEDDING_BASE_URL to an OpenAI-compatible embedding provider (e.g. https://api.openai.com/v1) "
+                 "or leave EMBEDDING_MODEL_NAME empty to use token-overlap fallback.")
 
 
 def validate_for_chat(settings: Settings) -> None:
@@ -117,18 +127,14 @@ def ensure_directories(settings: Settings) -> None:
 def mask_secret(value: str, visible_prefix: int = 3, visible_suffix: int = 4) -> str:
     if not value:
         return ""
-    if len(value) <= visible_prefix + visible_suffix:
+    visible = visible_prefix + visible_suffix
+    if len(value) <= visible:
         return "*" * len(value)
-    return f"{value[:visible_prefix]}{'*' * 4}{value[-visible_suffix:]}"
+    return f"{value[:visible_prefix]}{'*' * min(4, len(value) - visible)}{value[-visible_suffix:]}"
 
 
 def get_llm(settings: Settings) -> Any:
-    """Create an OpenAI-compatible client for DeepSeek API.
-
-    Uses the native openai SDK with base_url pointing to DeepSeek's endpoint.
-    This avoids the model name validation that llama-index's wrapper enforces
-    (which only accepts OpenAI model names).
-    """
+    """Create an OpenAI-compatible client for DeepSeek API."""
     validate_for_chat(settings)
     try:
         from openai import OpenAI
@@ -138,4 +144,45 @@ def get_llm(settings: Settings) -> Any:
     return OpenAI(
         api_key=settings.deepseek_api_key,
         base_url=settings.deepseek_base_url,
+    )
+
+
+class OpenAIEmbeddingModel:
+    """OpenAI-compatible embedding model wrapper.
+
+    Supports any provider that implements the OpenAI embeddings API shape
+    (OpenAI, Ollama, Azure, etc.).
+    """
+
+    def __init__(self, model_name: str, base_url: str, api_key: str = "") -> None:
+        from openai import OpenAI
+
+        self.model_name = model_name
+        self.client = OpenAI(api_key=api_key or "not-needed", base_url=base_url)
+
+    def get_text_embedding_batch(self, texts: list[str]) -> list[list[float]]:
+        response = self.client.embeddings.create(input=texts, model=self.model_name)
+        return [item.embedding for item in response.data]
+
+    def get_text_embedding(self, text: str) -> list[float]:
+        return self.get_text_embedding_batch([text])[0]
+
+    def get_query_embedding(self, query: str) -> list[float]:
+        return self.get_text_embedding(query)
+
+
+def get_embedding_model(settings: Settings) -> Any | None:
+    """Create an embedding model if configured, otherwise return None.
+
+    When None is returned, vector retrieval falls back to token-overlap
+    scoring.  To enable real semantic retrieval set:
+      EMBEDDING_MODEL_NAME=text-embedding-3-small
+      EMBEDDING_BASE_URL=https://api.openai.com/v1
+    """
+    if not settings.embedding_model_name:
+        return None
+    return OpenAIEmbeddingModel(
+        model_name=settings.embedding_model_name,
+        base_url=settings.embedding_base_url,
+        api_key=settings.deepseek_api_key,
     )

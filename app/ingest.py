@@ -114,7 +114,7 @@ class DocumentManifest:
 
     def mark_failed(self, source_path: str, error: str, document_id: str | None = None) -> None:
         existing = self.find_by_path(source_path)
-        doc_id = document_id or (existing or {}).get("document_id") or build_document_id(source_path)
+        doc_id = document_id or build_document_id(source_path)
         now = utc_now_iso()
         record = {
             "document_id": doc_id,
@@ -381,20 +381,36 @@ class IngestionEngine:
         )
 
     def rebuild_index(self, force: bool = False) -> IngestSummary:
+        import logging as _logging
+
+        logger = _logging.getLogger(__name__)
         if force:
+            logger.info("Force-rebuilding index — clearing all data first")
             self.clear_index(clear_manifest=True)
 
         existing_paths = {record["source_path"]: record for record in self.manifest.list_documents()}
         current_files = self.scan_files()
         current_paths = {self._display_path(path) for path in current_files}
 
+        removed_count = 0
         for source_path, record in existing_paths.items():
             if source_path in current_paths:
                 continue
             self.vector_store.delete_by_document_id(record["document_id"])
             self.manifest.remove_document(record["document_id"])
+            removed_count += 1
 
-        return self.add_files(current_files)
+        if removed_count:
+            logger.info("Removed %d stale document(s) from index", removed_count)
+
+        summary = self.add_files(current_files)
+        if summary.failed_files:
+            logger.warning(
+                "Rebuild finished with %d/%d files failed",
+                summary.failed_files,
+                summary.total_files,
+            )
+        return summary
 
     def delete_file(self, document_id_or_path: str, delete_source: bool = False) -> FileIngestResult:
         record = self.manifest.get(document_id_or_path)
@@ -487,11 +503,9 @@ class IngestionEngine:
         target_chars = self.settings.chunk_size
         overlap_chars = self.settings.chunk_overlap
 
-        # If the entire text fits within one chunk, return as-is
         if len(text) <= target_chars:
             return [text]
 
-        # Prefer paragraph breaks, then line breaks, then character-level split
         chunks: list[str] = []
         start = 0
         while start < len(text):
@@ -504,16 +518,14 @@ class IngestionEngine:
 
             end = start + target_chars
 
-            # Try to find a paragraph break (\n\n) before end
+            # Prefer paragraph breaks, then line breaks
             paragraph_break = text.rfind("\n\n", start + 1, end)
             if paragraph_break > start and paragraph_break - start >= target_chars // 2:
                 end = paragraph_break
             else:
-                # Try to find a line break (\n) before end
                 line_break = text.rfind("\n", start + 1, end)
                 if line_break > start and line_break - start >= target_chars // 2:
                     end = line_break
-                # else: keep end at character boundary
 
             chunk = text[start:end].strip()
             if chunk:
@@ -522,31 +534,38 @@ class IngestionEngine:
             if end >= len(text):
                 break
 
-            # Compute overlap start — try to start at a line/paragraph break
-            overlap_start = max(end - overlap_chars, start + 1)
+            # Compute overlap start within [end - overlap_chars, end)
+            overlap_candidate = max(end - overlap_chars, start + 1)
+            if overlap_candidate >= end:
+                overlap_candidate = end - 1
+
+            overlap_start = overlap_candidate
             if overlap_start < len(text):
+                # Search for a clean break point *within* the overlap window only
                 next_paragraph = text.find("\n\n", overlap_start)
-                if 0 < next_paragraph < end + overlap_chars:
+                if start < next_paragraph < end:
                     overlap_start = next_paragraph + 2
-                elif overlap_start < len(text):
+                else:
                     next_line = text.find("\n", overlap_start)
-                    if 0 < next_line < end + overlap_chars:
+                    if start < next_line < end:
                         overlap_start = next_line + 1
-            start = overlap_start
+
+            # Safety guard: always make forward progress
+            start = max(overlap_start, start + 1)
 
         return chunks
 
     def _decode_text(self, file_bytes: bytes) -> str:
         encodings = ("utf-8", "utf-8-sig", "gb18030", "latin-1")
-        last_error: Exception | None = None
         for encoding in encodings:
             try:
                 return file_bytes.decode(encoding)
-            except UnicodeDecodeError as exc:
-                last_error = exc
-        if last_error is not None:
-            raise last_error
-        raise ValueError("Unable to decode file")
+            except UnicodeDecodeError:
+                continue
+        # All encodings failed
+        raise ValueError(
+            f"Unable to decode file with any of {encodings}"
+        )
 
     def _embed_chunks(self, texts: list[str]) -> list[list[float] | None]:
         if not texts:

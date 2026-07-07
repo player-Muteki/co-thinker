@@ -9,7 +9,11 @@ from typing import Any
 from app.ingest import VectorStore
 from config import Settings
 
-TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_./:-]+|[一-鿿]+")
+# Match English/alphanumeric tokens as words, Chinese characters individually.
+# Single-char Chinese tokenization ensures partial overlap (e.g. query "红黑树"
+# and chunk "红黑树的性质" share "红", "黑", "树"), which the greedy + pattern
+# could not provide (both became monolithic single tokens).
+TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_./:-]+|[一-鿿]")
 SHORT_QUERY_HINTS = {"它", "这个", "这个功能", "这些", "那个", "有哪些", "怎么做", "如何", "为什么"}
 
 
@@ -85,9 +89,10 @@ class RetrievalResults:
         if not self.results:
             return "none"
         top = self.results[0].final_score
-        if top >= 0.04:
+        # Scores are normalized to [0, 1] for all retrieval modes
+        if top >= 0.5:
             return "high"
-        if top >= 0.02:
+        if top >= 0.25:
             return "medium"
         return "low"
 
@@ -256,7 +261,15 @@ class HybridRetriever:
 
         fused = list(merged.values())
         for item in fused:
-            item.final_score = item.rrf_score or item.vector_score or item.bm25_score or 0.0
+            # Normalize RRF score to [0, 1] so it's comparable with raw scores:
+            # max_possible = vector_weight/(rrf_k+1) + bm25_weight/(rrf_k+1) = 1/(rrf_k+1)
+            # Multiply by (rrf_k + 1) to rescale to [0, 1]
+            rrf = item.rrf_score or 0.0
+            if rrf > 0 and item.matched_by:
+                rrf_normalized = rrf * (self.settings.rrf_k + 1)
+                item.final_score = min(rrf_normalized, 1.0)
+            else:
+                item.final_score = item.vector_score or item.bm25_score or 0.0
         fused.sort(key=lambda item: item.final_score, reverse=True)
         return fused
 

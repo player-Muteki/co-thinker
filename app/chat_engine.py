@@ -109,9 +109,7 @@ class ChatEngine:
             self.create_conversation()
         elif self.current_id == conversation_id:
             self.current_id = next(iter(self.conversations))
-            self.save()
-        else:
-            self.save()
+        self.save()
         return True
 
     def rename_conversation(self, conversation_id: str, title: str) -> bool:

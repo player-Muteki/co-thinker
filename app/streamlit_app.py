@@ -21,6 +21,7 @@ from app.ingest import IngestionEngine
 from app.retriever import HybridRetriever
 from config import (
     ensure_directories,
+    get_embedding_model,
     get_llm,
     load_settings,
     validate_for_chat,
@@ -46,10 +47,14 @@ def init_session_state() -> None:
 
 def reset_runtime_objects() -> None:
     settings = current_settings()
-    st.session_state.ingest_engine = IngestionEngine(settings)
+    embedding_model = get_embedding_model(settings)
+    st.session_state.ingest_engine = IngestionEngine(settings, embedding_model=embedding_model)
     st.session_state.chat_engine = ChatEngine(settings.storage_dir / "chat_history.json", max_history_turns=settings.max_history_turns)
-    st.session_state.retriever = HybridRetriever(settings, st.session_state.ingest_engine.vector_store)
-    st.session_state.generator = RAGGenerator(settings)
+    st.session_state.retriever = HybridRetriever(settings, st.session_state.ingest_engine.vector_store, embedding_model=embedding_model)
+    # Generator is lazily initialized by build_generator() with LLM
+    st.session_state.pop("generator", None)
+    if not embedding_model and settings.embedding_model_name:
+        st.warning(f"⚠️ 嵌入模型 {settings.embedding_model_name} 初始化失败，向量检索将使用词元重叠（token overlap）降级方案。")
 
 
 def current_settings():
@@ -57,12 +62,17 @@ def current_settings():
     overrides = st.session_state.get("runtime_overrides", {})
     if not overrides:
         return base
-    return load_settings(overrides=overrides)
+    # Merge overrides on top of the existing (possibly previously merged) base,
+    # so that omitting a field in overrides preserves the current value.
+    from config import Settings
+    merged = {**base.__dict__, **overrides}
+    return Settings(**merged)
 
 
 def build_retriever() -> HybridRetriever:
     settings = current_settings()
-    retriever = HybridRetriever(settings, st.session_state.ingest_engine.vector_store)
+    embedding_model = get_embedding_model(settings)
+    retriever = HybridRetriever(settings, st.session_state.ingest_engine.vector_store, embedding_model=embedding_model)
     st.session_state.retriever = retriever
     return retriever
 
@@ -76,7 +86,6 @@ def build_generator() -> RAGGenerator:
     except Exception as exc:
         logger.warning("LLM not available: %s", exc)
         st.warning(f"⚠️ DeepSeek LLM 未配置或初始化失败（{exc}），问答将使用 fallback 模式。请设置 DEEPSEEK_API_KEY。")
-        llm = None
     generator = RAGGenerator(settings, llm=llm)
     st.session_state.generator = generator
     return generator
