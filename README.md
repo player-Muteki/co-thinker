@@ -27,15 +27,20 @@ curl -sSL https://raw.githubusercontent.com/player-Muteki/co-thinker/main/instal
 
 ### Windows
 
-以管理员身份打开 PowerShell，执行：
+以管理员身份打开 PowerShell，执行以下任一命令：
 
 ```powershell
+# 方式一（推荐 - 使用 curl.exe，更稳定）
+powershell -ExecutionPolicy Bypass -c "curl.exe -sSL https://raw.githubusercontent.com/player-Muteki/co-thinker/main/install.ps1 | iex"
+
+# 方式二（使用 irm，可能遇到 GitHub 限流）
 powershell -ExecutionPolicy Bypass -c "irm https://raw.githubusercontent.com/player-Muteki/co-thinker/main/install.ps1 | iex"
 ```
 
 或手动下载后执行：
 
 ```powershell
+curl.exe -sSL -o install.ps1 https://raw.githubusercontent.com/player-Muteki/co-thinker/main/install.ps1
 powershell -ExecutionPolicy Bypass -File install.ps1
 ```
 
