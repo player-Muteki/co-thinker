@@ -340,7 +340,8 @@ def _start_full_stack(web_dir: Path, port: int, api_port: int, cwd: Path, open_b
 
     # 检测生产构建产物，决定启动模式
     next_build = web_dir / ".next"
-    if next_build.exists():
+    build_manifest = next_build / "build-manifest.json"
+    if next_build.exists() and build_manifest.exists():
         typer.echo(f"[WEB] 启动 Next.js 生产服务器 (port {port})...")
         mode_cmd = ["npx", "next", "start", "--port", str(port)]
     else:
