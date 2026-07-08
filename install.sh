@@ -30,16 +30,18 @@ else
     step "Downloading Co-Thinker from GitHub Release"
 
     TMP_DIR=$(mktemp -d)
-    WHEEL_FILE="$TMP_DIR/co-thinker.whl"
 
     # Use GitHub API to find the latest release wheel URL
     if command -v curl &>/dev/null; then
         API_OUT=$(curl -sSL --max-time 15 "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null || true)
         if [[ -n "$API_OUT" ]]; then
+            # Extract the .whl asset download URL, tag name, and filename using grep/sed
             WHEEL_URL=$(echo "$API_OUT" | grep -o '"browser_download_url": *"[^"]*\.whl"' | head -1 | sed 's/.*: *"//;s/"//' || true)
+            WHEEL_NAME=$(echo "$WHEEL_URL" | sed 's/.*\///' || true)
             TAG_NAME=$(echo "$API_OUT" | grep -o '"tag_name": *"[^"]*"' | head -1 | sed 's/.*: *"//;s/"//' || true)
-            if [[ -n "$WHEEL_URL" ]]; then
-                info "下载 wheel: ${TAG_NAME:-latest} ..."
+            if [[ -n "$WHEEL_URL" && -n "$WHEEL_NAME" ]]; then
+                info "下载 wheel: $WHEEL_NAME (${TAG_NAME:-latest}) ..."
+                WHEEL_FILE="$TMP_DIR/$WHEEL_NAME"
                 curl -sSL --max-time 60 -o "$WHEEL_FILE" "$WHEEL_URL" && WHEEL_PATH="$WHEEL_FILE"
             fi
         fi
