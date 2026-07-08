@@ -89,7 +89,7 @@ if (Test-Path $VenDir) {
 
 & $Python -m venv $VenDir | Out-Null
 $Pip = Join-Path $VenDir "Scripts\pip.exe"
-& $Pip install $WheelFile --quiet
+& $Pip install $WheelFile
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Installation failed"
     exit 1
