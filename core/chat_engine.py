@@ -225,9 +225,7 @@ class ChatEngine:
                 for conversation_id, conversation in self.conversations.items()
             },
         }
-        tmp_path = self.storage_path.with_suffix(f"{self.storage_path.suffix}.tmp")
-        tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        tmp_path.replace(self.storage_path)
+        self.storage_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def auto_title_from_text(text: str, limit: int = 24) -> str:

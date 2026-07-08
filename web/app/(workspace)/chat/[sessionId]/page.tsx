@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import ChatMessages from "@/components/chat/ChatMessages";
 import ChatComposer from "@/components/chat/ChatComposer";
 
@@ -13,6 +13,7 @@ interface SessionData {
 
 export default function ChatSessionPage() {
   const params = useParams();
+  const router = useRouter();
   const sessionId = params.sessionId as string;
   const [session, setSession] = useState<SessionData | null>(null);
   const [streaming, setStreaming] = useState(false);
@@ -23,9 +24,12 @@ export default function ChatSessionPage() {
   useEffect(() => {
     if (!sessionId) return;
     fetch(`/api/sessions/${sessionId}`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Session deleted");
+        return res.json();
+      })
       .then((data) => setSession(data))
-      .catch(console.error);
+      .catch(() => router.push("/chat"));
   }, [sessionId]);
 
   // WebSocket connection

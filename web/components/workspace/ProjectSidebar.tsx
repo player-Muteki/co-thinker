@@ -49,6 +49,15 @@ export default function ProjectSidebar({
       .catch(() => {});
   }, [pathname]);
 
+  // 监听索引更新事件，自动刷新统计
+  useEffect(() => {
+    const handler = () => {
+      fetch("/api/project").then(r => r.json()).then(setInfo).catch(() => {});
+    };
+    window.addEventListener("index-updated", handler);
+    return () => window.removeEventListener("index-updated", handler);
+  }, []);
+
   const createSession = async () => {
     try {
       const res = await fetch("/api/sessions", {
@@ -107,7 +116,7 @@ export default function ProjectSidebar({
           {/* Project info */}
           {info && (
             <div className="px-3 py-2 text-xs text-[var(--sidebar-muted)] border-b border-[var(--sidebar-active)]">
-              已索引 {info.stats?.indexed_count ?? 0} / {info.stats?.chunk_count ?? 0} 片段
+              已索引 {info.stats?.indexed_count ?? 0} 个文件 · 共 {info.stats?.chunk_count ?? 0} 个片段
             </div>
           )}
 

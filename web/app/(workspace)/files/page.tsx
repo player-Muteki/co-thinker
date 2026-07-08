@@ -59,20 +59,9 @@ export default function FilesPage() {
       const result = await res.json();
       await loadFiles();
       setSelected(new Set());
+      window.dispatchEvent(new CustomEvent("index-updated"));
     } catch (e) {
       console.error("Index failed", e);
-    } finally {
-      setIndexing(false);
-    }
-  };
-
-  const handleRebuildAll = async () => {
-    setIndexing(true);
-    try {
-      await fetch("/api/ingest/rebuild", { method: "POST" });
-      await loadFiles();
-    } catch (e) {
-      console.error("Rebuild failed", e);
     } finally {
       setIndexing(false);
     }
@@ -91,23 +80,13 @@ export default function FilesPage() {
             已索引 {indexedCount}/{totalFileCount} 个文件
           </p>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={handleRebuildAll}
-            disabled={indexing}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm rounded border border-[var(--surface-border)] hover:bg-[var(--surface-alt)] disabled:opacity-50"
-          >
-            <RefreshCw size={14} className={indexing ? "animate-spin" : ""} />
-            全量重建
-          </button>
-          <button
-            onClick={handleIndex}
-            disabled={selected.size === 0 || indexing}
-            className="px-4 py-1.5 text-sm rounded bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-50"
-          >
-            {indexing ? "索引中..." : `索引所选 (${selected.size})`}
-          </button>
-        </div>
+        <button
+          onClick={handleIndex}
+          disabled={selected.size === 0 || indexing}
+          className="px-4 py-1.5 text-sm rounded bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-50"
+        >
+          {indexing ? "索引中..." : "索引"}
+        </button>
       </div>
 
       <div className="mb-4">
@@ -119,6 +98,20 @@ export default function FilesPage() {
           className="w-full px-3 py-2 text-sm rounded border border-[var(--surface-border)] bg-[var(--surface-bg)] focus:outline-none focus:border-[var(--accent)]"
         />
       </div>
+
+      {selected.size > 0 && (
+        <div className="mb-3 px-3 py-2 rounded-lg bg-[var(--surface-alt)] border border-[var(--surface-border)] text-sm">
+          <div className="text-[var(--text-secondary)] mb-1">已选 {selected.size} 个文件</div>
+          <div className="space-y-0.5 max-h-24 overflow-y-auto">
+            {Array.from(selected).slice(0, 10).map(p => (
+              <div key={p} className="truncate text-xs text-[var(--text-primary)]">{p}</div>
+            ))}
+            {selected.size > 10 && (
+              <div className="text-xs text-[var(--text-secondary)]">...还有 {selected.size - 10} 个</div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div
         className="flex items-center gap-2 px-3 py-1.5 cursor-pointer text-sm text-[var(--text-secondary)] hover:bg-[var(--surface-alt)] rounded mb-1"

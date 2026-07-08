@@ -89,12 +89,10 @@ class DocumentManifest:
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        tmp_path = self.path.with_suffix(f"{self.path.suffix}.tmp")
-        tmp_path.write_text(
+        self.path.write_text(
             json.dumps(self.data, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
-        tmp_path.replace(self.path)
 
     def clear(self) -> None:
         self.data = {"version": 1, "documents": {}}
@@ -184,12 +182,10 @@ class JsonVectorStore(VectorStore):
 
     def _save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        tmp_path = self.path.with_suffix(f"{self.path.suffix}.tmp")
-        tmp_path.write_text(
+        self.path.write_text(
             json.dumps(self.records, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
-        tmp_path.replace(self.path)
 
     def upsert_chunks(self, chunks: list[ChunkRecord]) -> None:
         """Insert or update chunks in memory.  Caller must call ``flush()`` to persist."""

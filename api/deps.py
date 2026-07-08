@@ -69,7 +69,12 @@ def get_project_context(explicit: str | None = None) -> Any:
     generator = RAGGenerator(config=ctx.config, llm=llm)
     ctx.generator = generator
 
-    logger.info("ProjectContext loaded: %s (chunks=%d)", ctx.root, vectorstore.count_chunks())
+    # 每次启动清空索引，从零开始
+    if ctx.ingest_engine:
+        ctx.ingest_engine.clear_index(clear_manifest=True)
+        logger.info("Index cleared — starting fresh (0 chunks)")
+
+    logger.info("ProjectContext loaded: %s", ctx.root)
     return ctx
 
 
