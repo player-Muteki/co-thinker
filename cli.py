@@ -351,21 +351,27 @@ def _start_full_stack(web_dir: Path, port: int, api_port: int, cwd: Path, open_b
     # 启动 API 服务
     api_proc = _start_api_process(api_port, cwd)
 
-    # 安装前端依赖并启动
-    typer.echo("[WEB] 检查前端依赖...")
+    # 检查 Node.js / npm
+    typer.echo("[WEB] 检查 Node.js 环境...")
+    if not _check_npm():
+        typer.echo("[ERROR] 未检测到 npm，请先安装 Node.js (https://nodejs.org/)")
+        typer.echo("[INFO] 仅启动 API 服务")
+        _start_api_only(api_port, cwd)
+        return
+
+    # 安装前端依赖
     node_modules = web_dir / "node_modules"
     if not node_modules.exists():
-        typer.echo("[WEB] 正在安装前端依赖...")
-        try:
-            subprocess.run(
-                [sys.executable, "-m", "npm", "install"],
-                cwd=str(web_dir),
-                capture_output=True,
-            )
-        except Exception:
-            pass
-        # try npm directly
-        subprocess.run(["npm", "install"], cwd=str(web_dir), capture_output=True)
+        typer.echo("[WEB] 正在安装前端依赖 (npm install)...")
+        result = subprocess.run(
+            ["npm", "install"],
+            cwd=str(web_dir),
+        )
+        if result.returncode != 0:
+            typer.echo("[ERROR] npm install 失败，仅启动 API 服务")
+            _start_api_only(api_port, cwd)
+            return
+        typer.echo("[WEB] 前端依赖安装完成")
 
     typer.echo(f"[WEB] 启动 Next.js (port {port})...")
     env = os.environ.copy()
@@ -415,6 +421,19 @@ def _start_api_only(api_port: int, cwd: Path) -> None:
         except subprocess.TimeoutExpired:
             proc.kill()
         typer.echo("[OK] Co-Thinker 已关闭")
+
+
+def _check_npm() -> bool:
+    """检查 npm 是否可用。"""
+    try:
+        result = subprocess.run(
+            ["npm", "--version"],
+            capture_output=True,
+            timeout=10,
+        )
+        return result.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
 
 
 def _start_api_process(api_port: int, cwd: Path) -> subprocess.Popen:
