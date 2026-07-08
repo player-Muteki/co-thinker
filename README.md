@@ -42,30 +42,6 @@ bash <(curl -sSL 'https://raw.githubusercontent.com/player-Muteki/co-thinker/ref
 curl -sSL -o /tmp/co-thinker-install.sh 'https://raw.githubusercontent.com/player-Muteki/co-thinker/refs/heads/main/install.sh' && bash /tmp/co-thinker-install.sh
 ```
 
-### 如果遇到 429 限流
-
-以下备选方案适用于 Linux 和 macOS：
-
-**方案一（通过 GitHub API 获取脚本）：**
-```bash
-curl -sSL -H "Accept: application/vnd.github.raw+json" https://api.github.com/repos/player-Muteki/co-thinker/contents/install.sh > /tmp/co-thinker-install.sh && bash /tmp/co-thinker-install.sh
-```
-
-**方案二（手动安装）：**
-```bash
-# 从 GitHub Releases 下载最新 wheel
-curl -sSL https://api.github.com/repos/player-Muteki/co-thinker/releases/latest | python3 -c "import json,sys; r=json.load(sys.stdin); print([a['browser_download_url'] for a in r['assets'] if a['name'].endswith('.whl')][0])" | xargs curl -sSL -o /tmp/co-thinker.whl
-
-# 创建虚拟环境并安装
-python3 -m venv ~/.co-thinker
-~/.co-thinker/bin/pip install /tmp/co-thinker.whl
-
-# 添加到 PATH
-ln -sf ~/.co-thinker/bin/co-thinker ~/.local/bin/co-thinker
-echo 'export PATH=\$PATH:\$HOME/.local/bin' >> ~/.bashrc
-source ~/.bashrc
-```
-
 ### Windows
 
 以管理员身份打开 PowerShell，执行以下任一命令：
