@@ -3,7 +3,7 @@
 # Co-Thinker one-click install
 #
 # Usage:
-#   bash install.sh                    # install from GitHub source
+#   bash install.sh                    # install from GitHub Release (latest wheel)
 #   bash install.sh co_thinker-*.whl  # local .whl file
 # ============================================================
 set -euo pipefail
@@ -20,30 +20,55 @@ step()  { echo -e "\n${BOLD}>> $1${NC}"; }
 
 # --- Determine install source ---
 REPO="player-Muteki/co-thinker"
+WHEEL_PATH=""
 
 if [[ $# -ge 1 && -f "$1" ]]; then
     # Local .whl file
     WHEEL_PATH="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
+    info "使用本地 wheel: $WHEEL_PATH"
 else
-    step "Downloading Co-Thinker from GitHub"
+    step "Downloading Co-Thinker from GitHub Release"
+
     TMP_DIR=$(mktemp -d)
-    if command -v git &>/dev/null; then
-        info "Cloning repo..."
-        git clone --depth 1 "https://github.com/$REPO.git" "$TMP_DIR" --quiet
-        info "Source cloned to $TMP_DIR"
-    else
-        info "Downloading zip..."
-        ZIP_URL="https://github.com/$REPO/archive/refs/heads/main.zip"
-        if command -v curl &>/dev/null; then
-            curl -sSL --max-time 30 -o "/tmp/co-thinker.zip" "$ZIP_URL"
-        else
-            wget -q --timeout=30 -O "/tmp/co-thinker.zip" "$ZIP_URL"
+    WHEEL_FILE="$TMP_DIR/co-thinker.whl"
+
+    # Try to download the latest release wheel from GitHub
+    LATEST_URL="https://github.com/$REPO/releases/latest/download/co_thinker-*-py3-none-any.whl"
+
+    if command -v curl &>/dev/null; then
+        # Get redirect URL to find actual wheel name
+        REDIRECT_URL=$(curl -sIL -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest" 2>/dev/null || echo "")
+        if [[ -n "$REDIRECT_URL" ]]; then
+            TAG="${REDIRECT_URL##*/}"
+            VERSION="${TAG#v}"
+            WHEEL_DL="https://github.com/$REPO/releases/download/$tag/co_thinker-${VERSION}-py3-none-any.whl"
+            info "下载 wheel: $tag ..."
+            curl -sSL --max-time 60 -o "$WHEEL_FILE" "$WHEEL_DL" && WHEEL_PATH="$WHEEL_FILE"
         fi
-        unzip -q "/tmp/co-thinker.zip" -d "/tmp/"
-        TMP_DIR="/tmp/co-thinker-main"
-        info "Source extracted to $TMP_DIR"
     fi
-    WHEEL_PATH="$TMP_DIR"
+
+    if [[ -z "$WHEEL_PATH" ]]; then
+        warn "GitHub Release 未找到 wheel，将从源码构建..."
+        if command -v git &>/dev/null; then
+            info "Cloning repo..."
+            git clone --depth 1 "https://github.com/$REPO.git" "$TMP_DIR/repo" --quiet
+            WHEEL_PATH="$TMP_DIR/repo"
+            info "Source cloned to $TMP_DIR/repo"
+        else
+            info "Downloading zip..."
+            ZIP_URL="https://github.com/$REPO/archive/refs/heads/main.zip"
+            if command -v curl &>/dev/null; then
+                curl -sSL --max-time 30 -o "/tmp/co-thinker.zip" "$ZIP_URL"
+            else
+                wget -q --timeout=30 -O "/tmp/co-thinker.zip" "$ZIP_URL"
+            fi
+            unzip -q "/tmp/co-thinker.zip" -d "/tmp/"
+            WHEEL_PATH="/tmp/co-thinker-main"
+            info "Source extracted to $WHEEL_PATH"
+        fi
+    else
+        info "wheel 下载完成"
+    fi
 fi
 
 # --- 1. Check Python ---
@@ -138,6 +163,11 @@ if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
     fi
 else
     info "PATH already includes $BIN_DIR"
+fi
+
+# --- 6. Cleanup ---
+if [[ -n "${TMP_DIR:-}" && -d "$TMP_DIR" ]]; then
+    rm -rf "$TMP_DIR"
 fi
 
 # --- Done ---
