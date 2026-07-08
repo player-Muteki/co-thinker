@@ -23,10 +23,10 @@
 一条命令安装 Co-Thinker：
 
 ```bash
-curl -sSL -o /tmp/co-thinker-install.sh https://raw.githubusercontent.com/player-Muteki/co-thinker/main/install.sh && bash /tmp/co-thinker-install.sh
+curl -sSL https://api.github.com/repos/player-Muteki/co-thinker/contents/install.sh | python3 -c "import json,sys; print(json.load(sys.stdin)['content'])" | base64 -d > /tmp/co-thinker-install.sh && bash /tmp/co-thinker-install.sh
 ```
 
-> 先下载到临时文件再执行，避免 GitHub raw 偶尔返回非脚本内容导致错误。
+> 通过 GitHub API 获取脚本，避免 raw.githubusercontent.com CDN 限流问题。
 
 ### macOS
 
