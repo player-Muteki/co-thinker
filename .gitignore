@@ -11,9 +11,15 @@ storage/
 __pycache__/
 *.pyc
 *.pyo
-.egg-info/
+*.egg-info/
 dist/
 build/
+
+# Virtual environment
+.venv/
+
+# Co-Thinker
+.deepseek/
 
 # IDE
 .vscode/

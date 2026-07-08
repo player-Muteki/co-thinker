@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.0.7] - 2026-07-08
+
+### ♻️ Maintenance
+- `.gitignore` 优化：添加 `.venv/`、`.deepseek/` 忽略规则，修正 `*.egg-info/` 通配
+- `web/package-lock.json` 依赖锁文件更新
+
+---
+
 ## [v0.0.6] - 2026-07-08
 
 ### 🐛 Bug Fixes
