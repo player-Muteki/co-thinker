@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { Bot, UserRound } from "lucide-react";
 
 interface Message {
   id: string;
@@ -24,27 +25,35 @@ export default function ChatMessages({
 
   if (messages.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-[var(--text-secondary)] p-8 text-center">
+      <div className="flex h-full items-center justify-center p-8 text-center text-[var(--text-secondary)]">
         <div>
-          <p className="text-lg mb-2">开始提问</p>
-          <p className="text-sm">在下方输入框中输入你的问题，RAG 系统将从文档中检索相关上下文并生成回答。</p>
+          <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-lg bg-[var(--surface-alt)] text-[var(--text-muted)]">
+            <Bot size={24} />
+          </div>
+          <p className="text-base font-medium text-[var(--text-primary)]">还没有消息</p>
+          <p className="mt-1 text-sm">等待第一条问题。</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="mx-auto max-w-4xl space-y-5 px-4 py-6 lg:px-6">
       {messages.map((msg) => (
         <div
           key={msg.id}
-          className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+          className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
         >
+          {msg.role !== "user" && (
+            <div className="mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-md bg-[var(--surface-panel)] text-[var(--accent)] shadow-[var(--shadow-sm)]">
+              <Bot size={17} />
+            </div>
+          )}
           <div
-            className={`max-w-[80%] rounded-lg px-4 py-3 text-sm ${
+            className={`max-w-[82%] rounded-lg px-4 py-3 text-sm leading-6 shadow-[var(--shadow-sm)] ${
               msg.role === "user"
                 ? "bg-[var(--accent)] text-white"
-                : "bg-[var(--surface-alt)] text-[var(--text-primary)]"
+                : "border border-[var(--surface-border)] bg-[var(--surface-panel)] text-[var(--text-primary)]"
             }`}
           >
             <div className="whitespace-pre-wrap break-words">
@@ -55,7 +64,7 @@ export default function ChatMessages({
             </div>
 
             {msg.role === "assistant" && msg.content && (
-              <div className="mt-2 text-xs text-[var(--text-secondary)]">
+              <div className="mt-3 border-t border-[var(--surface-border)] pt-2 text-xs text-[var(--text-secondary)]">
                 {new Date(msg.created_at).toLocaleTimeString("zh-CN", {
                   hour: "2-digit",
                   minute: "2-digit",
@@ -63,13 +72,20 @@ export default function ChatMessages({
               </div>
             )}
           </div>
+          {msg.role === "user" && (
+            <div className="mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-md bg-[var(--accent)] text-white shadow-[var(--shadow-sm)]">
+              <UserRound size={16} />
+            </div>
+          )}
         </div>
       ))}
 
-      {/* Loading indicator when streaming hasn't started yet */}
       {streaming && messages.length > 0 && messages[messages.length - 1].role === "user" && (
-        <div className="flex justify-start">
-          <div className="bg-[var(--surface-alt)] rounded-lg px-4 py-3 text-sm">
+        <div className="flex justify-start gap-3">
+          <div className="mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-md bg-[var(--surface-panel)] text-[var(--accent)] shadow-[var(--shadow-sm)]">
+            <Bot size={17} />
+          </div>
+          <div className="rounded-lg border border-[var(--surface-border)] bg-[var(--surface-panel)] px-4 py-3 text-sm shadow-[var(--shadow-sm)]">
             <div className="flex gap-1">
               <span className="w-2 h-2 bg-[var(--text-secondary)] rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
               <span className="w-2 h-2 bg-[var(--text-secondary)] rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />

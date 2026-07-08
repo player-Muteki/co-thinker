@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ChatMessages from "@/components/chat/ChatMessages";
 import ChatComposer from "@/components/chat/ChatComposer";
+import { MessageSquare, Wifi, WifiOff } from "lucide-react";
 
 interface SessionData {
   id: string;
@@ -18,7 +19,6 @@ export default function ChatSessionPage() {
   const [session, setSession] = useState<SessionData | null>(null);
   const [streaming, setStreaming] = useState(false);
   const [ws, setWs] = useState<WebSocket | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
 
   // Load session data
   useEffect(() => {
@@ -30,7 +30,7 @@ export default function ChatSessionPage() {
       })
       .then((data) => setSession(data))
       .catch(() => router.push("/chat"));
-  }, [sessionId]);
+  }, [router, sessionId]);
 
   // WebSocket connection
   useEffect(() => {
@@ -40,7 +40,6 @@ export default function ChatSessionPage() {
     const wsUrl = `${protocol}//${host}/api/ws/chat`;
 
     const socket = new WebSocket(wsUrl);
-    wsRef.current = socket;
 
     socket.onopen = () => setWs(socket);
 
@@ -115,16 +114,42 @@ export default function ChatSessionPage() {
   );
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex-1 overflow-auto">
+    <div className="flex h-full flex-col">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--surface-border)] bg-[var(--surface-panel)] px-4 lg:px-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-[var(--accent-soft)] text-[var(--accent)]">
+            <MessageSquare size={17} />
+          </div>
+          <div className="min-w-0">
+            <h1 className="truncate text-sm font-semibold">
+              {session?.title || "会话"}
+            </h1>
+            <p className="text-xs text-[var(--text-secondary)]">
+              {session?.messages.length ?? 0} 条消息
+            </p>
+          </div>
+        </div>
+        <div
+          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+            ws?.readyState === WebSocket.OPEN
+              ? "bg-[var(--success-soft)] text-[var(--success)]"
+              : "bg-[var(--warning-soft)] text-[var(--warning)]"
+          }`}
+        >
+          {ws?.readyState === WebSocket.OPEN ? <Wifi size={13} /> : <WifiOff size={13} />}
+          {ws?.readyState === WebSocket.OPEN ? "已连接" : "连接中"}
+        </div>
+      </header>
+
+      <div className="min-h-0 flex-1 overflow-auto">
         {session ? (
           <ChatMessages
             messages={session.messages}
             streaming={streaming}
           />
         ) : (
-          <div className="flex items-center justify-center h-full text-[var(--text-secondary)]">
-            加载中...
+          <div className="flex h-full items-center justify-center text-sm text-[var(--text-secondary)]">
+            正在加载会话...
           </div>
         )}
       </div>

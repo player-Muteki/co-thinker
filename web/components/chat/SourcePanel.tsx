@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 
 interface Source {
   chunk_id: string;
@@ -22,21 +22,21 @@ export default function SourcePanel({
   if (sources.length === 0) return null;
 
   return (
-    <div className="border-t border-[var(--surface-border)] bg-[var(--surface-alt)]">
+    <div className="border-t border-[var(--surface-border)] bg-[var(--surface-panel)]">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] w-full text-left"
+        className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-alt)] hover:text-[var(--text-primary)]"
       >
         {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         引用来源 ({sources.length})
       </button>
 
       {expanded && (
-        <div className="px-4 pb-3 space-y-1">
+        <div className="space-y-1 px-4 pb-3">
           {sources.map((src, i) => (
             <div
               key={src.chunk_id}
-              className="flex items-center justify-between px-3 py-2 rounded bg-[var(--surface-bg)] text-sm"
+              className="flex items-center justify-between rounded-md border border-[var(--surface-border)] bg-[var(--surface-bg)] px-3 py-2 text-sm"
             >
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-xs text-[var(--text-secondary)] shrink-0">
@@ -46,7 +46,7 @@ export default function SourcePanel({
                   {src.source_path}
                 </span>
                 {src.matched_by.length > 0 && (
-                  <span className="text-xs text-[var(--accent)] shrink-0">
+                  <span className="shrink-0 rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-medium text-[var(--accent)]">
                     {src.matched_by.join("+")}
                   </span>
                 )}

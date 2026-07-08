@@ -40,7 +40,7 @@ export default function ChatComposer({
   };
 
   return (
-    <div className="border-t border-[var(--surface-border)] p-4">
+    <div className="border-t border-[var(--surface-border)] bg-[var(--surface-panel)] p-4">
       <div className="flex items-end gap-2 max-w-4xl mx-auto">
         <textarea
           ref={textareaRef}
@@ -51,13 +51,14 @@ export default function ChatComposer({
           placeholder={placeholder}
           disabled={disabled}
           rows={1}
-          className="flex-1 px-4 py-3 rounded-lg border border-[var(--surface-border)] bg-[var(--surface-bg)] resize-none focus:outline-none focus:border-[var(--accent)] text-sm disabled:opacity-50"
+          className="flex-1 resize-none rounded-lg border border-[var(--surface-border)] bg-[var(--surface-bg)] px-4 py-3 text-sm leading-6 shadow-[var(--shadow-sm)] outline-none transition-colors placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)] disabled:opacity-50"
           style={{ minHeight: "44px", maxHeight: "200px" }}
         />
         <button
           onClick={handleSend}
           disabled={!input.trim() || disabled}
-          className="flex items-center justify-center w-11 h-11 rounded-lg bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-30 transition-opacity shrink-0"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[var(--accent)] text-white shadow-[var(--shadow-sm)] transition-colors hover:bg-[var(--accent-hover)] disabled:opacity-35"
+          title="发送"
         >
           <Send size={18} />
         </button>

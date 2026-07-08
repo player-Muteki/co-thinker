@@ -11,13 +11,13 @@ export default function WorkspaceLayout({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full min-h-screen bg-[var(--surface-bg)]">
       <ProjectSidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
       <main
-        className={`flex-1 overflow-auto transition-all duration-200 ${
+        className={`min-w-0 flex-1 overflow-auto transition-all duration-200 ${
           sidebarCollapsed ? "ml-0" : ""
         }`}
       >

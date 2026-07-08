@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Trash2,
+  Database,
 } from "lucide-react";
 
 interface Session {
@@ -90,44 +91,94 @@ export default function ProjectSidebar({
     return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
   };
 
+  const navItemClass =
+    "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors";
+  const inactiveNavClass =
+    "text-[var(--sidebar-muted)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-fg)]";
+
   return (
     <aside
-      className={`flex flex-col bg-[var(--sidebar-bg)] text-[var(--sidebar-fg)] transition-all duration-200 ${
-        collapsed ? "w-12" : "w-64"
+      className={`flex shrink-0 flex-col border-r border-black/10 bg-[var(--sidebar-bg)] text-[var(--sidebar-fg)] shadow-sm transition-all duration-200 ${
+        collapsed ? "w-14" : "w-72"
       }`}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 h-12 border-b border-[var(--sidebar-active)]">
+      <div className="flex h-14 items-center justify-between border-b border-white/10 px-3">
         {!collapsed && (
-          <span className="font-semibold truncate text-sm">
-            {info?.name || "Co-Thinker"}
-          </span>
+          <Link href="/chat" className="min-w-0">
+            <div className="truncate text-sm font-semibold tracking-wide">
+              {info?.name || "Co-Thinker"}
+            </div>
+            <div className="mt-0.5 text-xs text-[var(--sidebar-muted)]">
+              本地知识工作区
+            </div>
+          </Link>
         )}
         <button
           onClick={onToggle}
-          className="p-1 rounded hover:bg-[var(--sidebar-hover)] text-[var(--sidebar-muted)]"
+          className="grid h-8 w-8 place-items-center rounded-md text-[var(--sidebar-muted)] transition-colors hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-fg)]"
+          title={collapsed ? "展开侧边栏" : "收起侧边栏"}
         >
           {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
         </button>
       </div>
 
-      {!collapsed && (
+      {collapsed ? (
+        <nav className="flex flex-col gap-2 p-2">
+          <Link
+            href="/files"
+            title="文件管理"
+            className={`grid h-10 w-10 place-items-center rounded-md transition-colors ${
+              pathname.includes("/files")
+                ? "bg-[var(--sidebar-active)] text-[var(--sidebar-fg)]"
+                : inactiveNavClass
+            }`}
+          >
+            <Files size={18} />
+          </Link>
+          <Link
+            href="/chat"
+            title="问答"
+            className={`grid h-10 w-10 place-items-center rounded-md transition-colors ${
+              pathname.includes("/chat")
+                ? "bg-[var(--sidebar-active)] text-[var(--sidebar-fg)]"
+                : inactiveNavClass
+            }`}
+          >
+            <MessageSquare size={18} />
+          </Link>
+          <button
+            onClick={createSession}
+            title="新建会话"
+            className="grid h-10 w-10 place-items-center rounded-md text-[var(--sidebar-muted)] transition-colors hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-fg)]"
+          >
+            <Plus size={18} />
+          </button>
+        </nav>
+      ) : (
         <>
-          {/* Project info */}
           {info && (
-            <div className="px-3 py-2 text-xs text-[var(--sidebar-muted)] border-b border-[var(--sidebar-active)]">
-              已索引 {info.stats?.indexed_count ?? 0} 个文件 · 共 {info.stats?.chunk_count ?? 0} 个片段
+            <div className="border-b border-white/10 px-3 py-3">
+              <div className="flex items-center gap-2 rounded-md bg-white/5 px-3 py-2">
+                <Database size={16} className="text-[var(--accent)]" />
+                <div className="min-w-0">
+                  <div className="text-xs font-medium text-[var(--sidebar-fg)]">
+                    {info.stats?.indexed_count ?? 0} 个文件已索引
+                  </div>
+                  <div className="text-xs text-[var(--sidebar-muted)]">
+                    {info.stats?.chunk_count ?? 0} 个检索片段
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Navigation */}
-          <nav className="p-2 space-y-1">
+          <nav className="space-y-1 border-b border-white/10 p-2">
             <Link
               href="/files"
-              className={`flex items-center gap-2 px-3 py-2 rounded text-sm ${
+              className={`${navItemClass} ${
                 pathname.includes("/files")
                   ? "bg-[var(--sidebar-active)] text-[var(--sidebar-fg)]"
-                  : "text-[var(--sidebar-muted)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-fg)]"
+                  : inactiveNavClass
               }`}
             >
               <Files size={16} />
@@ -135,10 +186,10 @@ export default function ProjectSidebar({
             </Link>
             <Link
               href="/chat"
-              className={`flex items-center gap-2 px-3 py-2 rounded text-sm ${
+              className={`${navItemClass} ${
                 pathname.includes("/chat")
                   ? "bg-[var(--sidebar-active)] text-[var(--sidebar-fg)]"
-                  : "text-[var(--sidebar-muted)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-fg)]"
+                  : inactiveNavClass
               }`}
             >
               <MessageSquare size={16} />
@@ -146,44 +197,48 @@ export default function ProjectSidebar({
             </Link>
           </nav>
 
-          {/* Sessions */}
           <div className="flex-1 overflow-auto p-2">
-            <div className="flex items-center justify-between px-2 py-1 text-xs text-[var(--sidebar-muted)]">
+            <div className="flex items-center justify-between px-2 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--sidebar-muted)]">
               <span>会话</span>
               <button
                 onClick={createSession}
-                className="p-1 rounded hover:bg-[var(--sidebar-hover)]"
+                className="grid h-7 w-7 place-items-center rounded-md transition-colors hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-fg)]"
                 title="新建会话"
               >
-                <Plus size={14} />
+                <Plus size={15} />
               </button>
             </div>
-            <div className="space-y-0.5 mt-1">
+            <div className="mt-1 space-y-1">
               {sessions.map((s) => (
                 <Link
                   key={s.id}
                   href={`/chat/${s.id}`}
-                  className={`group flex items-center justify-between px-3 py-2 rounded text-sm ${
+                  className={`group flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
                     pathname.includes(s.id)
-                      ? "bg-[var(--sidebar-active)]"
-                      : "hover:bg-[var(--sidebar-hover)]"
+                      ? "bg-[var(--sidebar-active)] text-[var(--sidebar-fg)]"
+                      : "text-[var(--sidebar-muted)] hover:bg-[var(--sidebar-hover)] hover:text-[var(--sidebar-fg)]"
                   }`}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="truncate">{s.title}</div>
+                    <div className="truncate font-medium">{s.title}</div>
                     <div className="text-xs text-[var(--sidebar-muted)]">
                       {s.message_count} 条消息 · {formatDate(s.updated_at)}
                     </div>
                   </div>
                   <button
                     onClick={(e) => deleteSession(s.id, e)}
-                    className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-[var(--sidebar-active)] text-[var(--danger)]"
+                    className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-[var(--danger)] opacity-0 transition-opacity hover:bg-white/10 group-hover:opacity-100"
                     title="删除会话"
                   >
-                    <Trash2 size={12} />
+                    <Trash2 size={13} />
                   </button>
                 </Link>
               ))}
+              {sessions.length === 0 && (
+                <div className="rounded-md border border-white/10 px-3 py-4 text-sm text-[var(--sidebar-muted)]">
+                  暂无会话
+                </div>
+              )}
             </div>
           </div>
         </>

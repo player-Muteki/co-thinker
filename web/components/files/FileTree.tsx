@@ -20,15 +20,21 @@ interface FileTreeProps {
   onToggle: (path: string) => void;
 }
 
-const extIcon: Record<string, JSX.Element> = {};
 const FileIcon = <File size={16} className="text-[var(--text-secondary)]" />;
-const FileTextIcon = <FileText size={16} className="text-blue-400" />;
+const FileTextIcon = <FileText size={16} className="text-[var(--accent)]" />;
 
 function getFileIcon(ext: string): JSX.Element {
   if ([".md", ".txt", ".py", ".js", ".ts", ".rs", ".go", ".java"].includes(ext)) {
     return FileTextIcon;
   }
   return FileIcon;
+}
+
+function formatFileSize(size: number): string {
+  if (!size) return "0 B";
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export default function FileTree({ files, selected, onToggle }: FileTreeProps) {
@@ -87,52 +93,73 @@ export default function FileTree({ files, selected, onToggle }: FileTreeProps) {
     return (
       <div key={node.path}>
         <div
-          className="flex items-center gap-1 px-2 py-1 rounded hover:bg-[var(--surface-alt)] cursor-pointer text-sm"
+          className={`group flex min-h-9 items-center gap-2 border-b border-transparent px-2 text-sm transition-colors ${
+            isSelected
+              ? "bg-[var(--accent-soft)] text-[var(--text-primary)]"
+              : "hover:bg-[var(--surface-alt)]"
+          }`}
           style={{ paddingLeft: `${depth * 16 + 8}px` }}
         >
           {node.is_dir && hasChildren ? (
-            <span
+            <button
+              type="button"
               onClick={() => toggleExpand(node.path)}
-              className="p-0.5 hover:bg-[var(--surface-alt)] rounded"
+              className="grid h-6 w-6 shrink-0 place-items-center rounded text-[var(--text-muted)] hover:bg-[var(--surface-bg)] hover:text-[var(--text-primary)]"
+              title={isExpanded ? "收起目录" : "展开目录"}
             >
               {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-            </span>
+            </button>
           ) : node.is_dir ? (
-            <span className="w-[22px]" />
+            <span className="h-6 w-6 shrink-0" />
           ) : (
-            <span
+            <button
+              type="button"
               onClick={() => node.file && onToggle(node.path)}
-              className="p-0.5 cursor-pointer"
+              className="grid h-6 w-6 shrink-0 place-items-center rounded text-[var(--text-muted)] hover:bg-[var(--surface-alt)] hover:text-[var(--accent)]"
+              title={isSelected ? "取消选择" : "选择文件"}
             >
               {isSelected ? (
                 <CheckSquare size={14} className="text-[var(--accent)]" />
               ) : (
                 <Square size={14} className="text-[var(--text-secondary)]" />
               )}
-            </span>
+            </button>
           )}
 
-          {node.is_dir ? (
-            isExpanded ? (
-              <FolderOpen size={16} className="text-yellow-500" />
-            ) : (
-              <Folder size={16} className="text-yellow-500" />
-            )
-          ) : node.file ? (
-            getFileIcon(node.file.ext)
-          ) : null}
+          <span className="shrink-0">
+            {node.is_dir ? (
+              isExpanded ? (
+                <FolderOpen size={16} className="text-amber-500" />
+              ) : (
+                <Folder size={16} className="text-amber-500" />
+              )
+            ) : node.file ? (
+              getFileIcon(node.file.ext)
+            ) : null}
+          </span>
 
-          <span
-            className="flex-1 truncate"
+          <button
+            type="button"
+            className="min-w-0 flex-1 truncate text-left"
             onClick={() => {
-              if (node.is_dir && hasChildren) toggleExpand(node.path);
+              if (node.is_dir && hasChildren) {
+                toggleExpand(node.path);
+              } else if (node.file) {
+                onToggle(node.path);
+              }
             }}
           >
             {node.name}
-          </span>
+          </button>
+
+          {node.file && (
+            <span className="hidden shrink-0 text-xs tabular-nums text-[var(--text-muted)] sm:inline">
+              {formatFileSize(node.file.size)}
+            </span>
+          )}
 
           {node.file?.is_indexed && (
-            <span className="text-xs text-green-500 bg-green-500/10 px-1.5 py-0.5 rounded">
+            <span className="shrink-0 rounded-full bg-[var(--success-soft)] px-2 py-0.5 text-xs font-medium text-[var(--success)]">
               已索引
             </span>
           )}
@@ -147,5 +174,5 @@ export default function FileTree({ files, selected, onToggle }: FileTreeProps) {
     );
   };
 
-  return <div>{root.children.map((child) => renderNode(child, 0))}</div>;
+  return <div className="py-2">{root.children.map((child) => renderNode(child, 0))}</div>;
 }
