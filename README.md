@@ -18,7 +18,7 @@
 
 ## 安装
 
-### Linux / macOS
+### Linux
 
 一条命令安装 Co-Thinker：
 
@@ -27,6 +27,20 @@ curl -sSL -o /tmp/co-thinker-install.sh https://raw.githubusercontent.com/player
 ```
 
 > 先下载到临时文件再执行，避免 GitHub raw 偶尔返回非脚本内容导致错误。
+
+### macOS
+
+> macOS 默认的 bash 3.2 对 Unicode 支持有限，请使用以下命令（通过 `refs/heads/main` 路径绕过 CDN 缓存）：
+
+```bash
+bash <(curl -sSL 'https://raw.githubusercontent.com/player-Muteki/co-thinker/refs/heads/main/install.sh')
+```
+
+或先下载再执行：
+
+```bash
+curl -sSL -o /tmp/co-thinker-install.sh 'https://raw.githubusercontent.com/player-Muteki/co-thinker/refs/heads/main/install.sh' && bash /tmp/co-thinker-install.sh
+```
 
 **如果遇到 429 限流**，试用以下备选方案：
 
@@ -79,7 +93,7 @@ powershell -ExecutionPolicy Bypass -File install.ps1
 
 ```bash
 mkdir my-kb && cd my-kb           # Linux / macOS
-co-thinker init                    # 创建 .env 和运行时目录
+co-thinker init                    # 创建 .co-thinker/ 配置目录
 co-thinker start                   # 启动 Web 界面
 ```
 
