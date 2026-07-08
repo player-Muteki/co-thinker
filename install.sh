@@ -32,18 +32,18 @@ else
     TMP_DIR=$(mktemp -d)
     WHEEL_FILE="$TMP_DIR/co-thinker.whl"
 
-    # Try to download the latest release wheel from GitHub
-    LATEST_URL="https://github.com/$REPO/releases/latest/download/co_thinker-*-py3-none-any.whl"
-
+    # Use GitHub API to find the latest release wheel URL
     if command -v curl &>/dev/null; then
-        # Get redirect URL to find actual wheel name
-        REDIRECT_URL=$(curl -sIL -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest" 2>/dev/null || echo "")
-        if [[ -n "$REDIRECT_URL" ]]; then
-            TAG="${REDIRECT_URL##*/}"
-            VERSION="${TAG#v}"
-            WHEEL_DL="https://github.com/$REPO/releases/download/$tag/co_thinker-${VERSION}-py3-none-any.whl"
-            info "下载 wheel: $tag ..."
-            curl -sSL --max-time 60 -o "$WHEEL_FILE" "$WHEEL_DL" && WHEEL_PATH="$WHEEL_FILE"
+        # Fetch latest release data via API (lightweight, no auth needed)
+        API_OUT=$(curl -sSL --max-time 15 "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null || true)
+        if [[ -n "$API_OUT" ]]; then
+            # Extract the .whl asset download URL and tag name using grep/sed (no python dependency)
+            WHEEL_URL=$(echo "$API_OUT" | grep -o '"browser_download_url": *"[^"]*\.whl"' | head -1 | sed 's/.*: *"//;s/"//' || true)
+            TAG_NAME=$(echo "$API_OUT" | grep -o '"tag_name": *"[^"]*"' | head -1 | sed 's/.*: *"//;s/"//' || true)
+            if [[ -n "$WHEEL_URL" ]]; then
+                info "下载 wheel: ${TAG_NAME:-latest} ..."
+                curl -sSL --max-time 60 -o "$WHEEL_FILE" "$WHEEL_URL" && WHEEL_PATH="$WHEEL_FILE"
+            fi
         fi
     fi
 
