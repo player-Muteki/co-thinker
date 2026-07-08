@@ -53,9 +53,17 @@ powershell -ExecutionPolicy Bypass -File install.ps1
 安装完成后，在新目录中初始化项目并启动：
 
 ```bash
-mkdir my-kb && cd my-kb
-co-thinker init       # 创建 .env 和运行时目录
-co-thinker start      # 启动 Web 界面
+mkdir my-kb && cd my-kb           # Linux / macOS
+co-thinker init                    # 创建 .env 和运行时目录
+co-thinker start                   # 启动 Web 界面
+```
+
+Windows PowerShell 请用 `;` 代替 `&&`：
+
+```powershell
+mkdir my-kb; cd my-kb
+co-thinker init
+co-thinker start
 ```
 
 > 首次使用前需编辑 `.env` 并填写 `DEEPSEEK_API_KEY`。
