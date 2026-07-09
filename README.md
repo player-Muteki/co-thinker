@@ -47,13 +47,13 @@ curl -fsSL 'https://raw.githubusercontent.com/player-Muteki/co-thinker/refs/head
 **方式一（推荐 — jsDelivr CDN）：**
 
 ```powershell
-powershell -ExecutionPolicy Bypass -c "curl.exe -fsSL -o $env:TEMP\install.ps1 'https://cdn.jsdelivr.net/gh/player-Muteki/co-thinker@main/install.ps1'; iex (Get-Content $env:TEMP\install.ps1 -Raw)"
+powershell -ExecutionPolicy Bypass -c "curl.exe -fsSL -o $env:TEMP\install.ps1 'https://cdn.jsdelivr.net/gh/player-Muteki/co-thinker@main/install.ps1'; & $env:TEMP\install.ps1"
 ```
 
 **方式二（GitHub Raw 备选）：**
 
 ```powershell
-powershell -ExecutionPolicy Bypass -c "curl.exe -fsSL -o $env:TEMP\install.ps1 'https://raw.githubusercontent.com/player-Muteki/co-thinker/refs/heads/main/install.ps1'; iex (Get-Content $env:TEMP\install.ps1 -Raw)"
+powershell -ExecutionPolicy Bypass -c "curl.exe -fsSL -o $env:TEMP\install.ps1 'https://raw.githubusercontent.com/player-Muteki/co-thinker/refs/heads/main/install.ps1'; & $env:TEMP\install.ps1"
 ```
 
 ### 启动
