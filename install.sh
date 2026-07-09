@@ -46,16 +46,6 @@ else
         fi
     fi
 
-    # Fallback: download wheel from jsDelivr CDN (more reliable, globally fast)
-    if [[ -z "$WHEEL_PATH" && -n "${TAG_NAME:-}" ]]; then
-        info "GitHub API 下载失败，尝试 jsDelivr CDN..."
-        WHEEL_FILE="$TMP_DIR/co-thinker.whl"
-        if curl -fsSL --max-time 60 -o "$WHEEL_FILE" \
-          "https://cdn.jsdelivr.net/gh/$REPO@$TAG_NAME/dist/co_thinker-${TAG_NAME#v}-py3-none-any.whl"; then
-            WHEEL_PATH="$WHEEL_FILE"
-        fi
-    fi
-
     # Fallback: clone source and build locally
     if [[ -z "$WHEEL_PATH" ]]; then
         warn "GitHub Release 未找到 wheel，将从源码构建..."
