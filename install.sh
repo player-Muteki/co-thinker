@@ -101,7 +101,7 @@ if [[ -d "$VENV_DIR" ]]; then
 fi
 
 "$PYTHON" -m venv "$VENV_DIR"
-"$VENV_DIR/bin/pip" install "$WHEEL_PATH" --quiet
+PYTHONPATH= "$VENV_DIR/bin/pip" install "$WHEEL_PATH" --quiet
 info "Installed to $VENV_DIR"
 
 # --- 3. Install frontend dependencies ---
