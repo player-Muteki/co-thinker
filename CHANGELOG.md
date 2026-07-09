@@ -1,5 +1,25 @@
 # Changelog
 
+## [v0.0.13] - 2026-07-09
+
+### ✨ Features
+- 新增 `.tex` / `.sty` / `.cls` / `.bib` / `.bst` 等 LaTeX 文件解析支持
+- 扩充文本解析扩展名：`.rst`、`.html`、`.lua`、`.swift`、`.kt`、`.sh` 等 30+ 格式
+
+### 🎨 UI
+- 对话消息支持 LaTeX 公式渲染（`remark-math` + `rehype-katex`），行内 `$...$` 和块级 `$$...$$`
+- 代码块语法高亮（`rehype-highlight` + highlight.js）
+- 内联代码样式优化：背景色、圆角、去除假名引号
+
+### 🐛 Bug Fixes
+- 修复 `config.toml` 固化旧 `supported_extensions` 导致新增扩展名不生效的问题
+- 修复 `core/file_catalog.py` 中缺失 `.hpp` 等常见 C++ 扩展名
+
+### 🔧 Maintenance
+- 版本号更新至 v0.0.13
+
+---
+
 ## [v0.0.12] - 2026-07-09
 
 ### ♻️ Refactor
