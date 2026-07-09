@@ -1,5 +1,22 @@
 # Changelog
 
+## [v0.1.9] - 2026-07-10
+
+### 🎨 UI
+- 代码块新增头部语言标识栏 + 悬停复制按钮
+- 自定义语法高亮颜色方案（浅色靛蓝/暗色青蓝双主题）
+- 移除 highlight.js 外部样式依赖
+
+### 🐛 Bug Fixes
+- 修复 install.ps1 在 PowerShell 5.1 下 Unicode 解析报错（添加 UTF-8 BOM）
+- 修复 Windows install 命令解析方式（`iex -Raw` → `&`）
+- 自动创建项目索引优化、会话标题改进、侧边栏刷新修复
+
+### 🔧 Maintenance
+- 版本号更新至 v0.1.9
+
+---
+
 ## [v0.1.1] - 2026-07-10
 
 ### ✨ Features
