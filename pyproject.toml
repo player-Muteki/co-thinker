@@ -41,6 +41,8 @@ dependencies = [
     "python-docx>=1.1.0",
     "pymupdf>=1.24.0",
     "python-pptx>=1.0.0",
+    # Version comparison (used by `co-thinker upgrade`)
+    "packaging>=23.0",
 ]
 
 [project.urls]
