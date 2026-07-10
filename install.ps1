@@ -15,11 +15,11 @@ function Write-Warn($msg) { Write-Host "[WARN] $msg" -ForegroundColor Yellow }
 function Write-Error($msg){ Write-Host "[ERROR] $msg" -ForegroundColor Red }
 
 Write-Host ""
-Write-Host "  ____          _   _   _           _"
-Write-Host " / ___|___   __| | | |_| |__  _ __ | | _____ _ __"
-Write-Host "| |   / _ \ / _' | | __| '_ \| '_ \| |/ / _ \ '__|"
-Write-Host "| |__| (_) | (_| | | |_| | | | | |   <  __/ |"
-Write-Host " \____\___/ \__,_|  \__|_| |_|_| |_|_|\_\___|_|"
+Write-Host "  ____ ___      _____ _   _ ___ _   _ _  _______ ____"
+Write-Host " / ___/ _ \    |_   _| | | |_ _| \ | | |/ / ____|  _ \"
+Write-Host "| |  | | | |_____| | | |_| || ||  \| | ' /|  _| | |_) |"
+Write-Host "| |__| |_| |_____| | |  _  || || |\  | . \| |___|  _ <"
+Write-Host " \____\___/      |_| |_| |_|___|_| \_|_|\_\_____|_| \_\"
 Write-Host ""
 Write-Host "  Co-Thinker Installer"
 
