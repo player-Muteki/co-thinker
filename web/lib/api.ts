@@ -27,6 +27,7 @@ export interface FileItem {
   is_dir: boolean;
   is_indexed: boolean;
   document_id: string;
+  tags: string[];
 }
 
 export interface FileListResponse {
@@ -174,6 +175,29 @@ export function deleteDocument(
 ): Promise<{ status: string; path: string; chunk_count: number }> {
   return request(`/api/ingest/${documentId}`, {
     method: "DELETE",
+  });
+}
+
+/** 更新文档元数据（tags） */
+export function updateDocument(
+  documentId: string,
+  data: { tags: string[] }
+): Promise<Record<string, unknown>> {
+  return request(`/api/documents/${documentId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+/** 重新索引单个文档：删除旧索引后重新索引。 */
+export async function reindexDocument(
+  documentId: string,
+  filePath: string
+): Promise<void> {
+  await request(`/api/ingest/${documentId}`, { method: "DELETE" }).catch(() => {});
+  await request("/api/ingest", {
+    method: "POST",
+    body: JSON.stringify({ paths: [filePath] }),
   });
 }
 

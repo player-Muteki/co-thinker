@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import FileTree from "@/components/files/FileTree";
-import { RefreshCw, CheckSquare, Square, Search, Database, Trash2 } from "lucide-react";
-import { getFiles, ingestFiles, type FileItem } from "@/lib/api";
+import { RefreshCw, CheckSquare, Square, Search, Database, Trash2, RotateCw } from "lucide-react";
+import { getFiles, ingestFiles, updateDocument, reindexDocument, type FileItem } from "@/lib/api";
 
 export default function FilesPage() {
   const [files, setFiles] = useState<FileItem[]>([]);
@@ -12,6 +12,7 @@ export default function FilesPage() {
   const [indexing, setIndexing] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [reindexing, setReindexing] = useState(false);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [autoIndex, setAutoIndex] = useState(true);
@@ -136,6 +137,35 @@ export default function FilesPage() {
     }
   };
 
+  const handleTagUpdate = async (documentId: string, tags: string[]) => {
+    try {
+      await updateDocument(documentId, { tags });
+      setFiles((prev) =>
+        prev.map((f) =>
+          f.document_id === documentId ? { ...f, tags } : f
+        )
+      );
+    } catch (e) {
+      console.error("Tag update failed", e);
+    }
+  };
+
+  const handleReindex = async () => {
+    const toReindex = selectedIndexedFiles;
+    if (toReindex.length === 0) return;
+    setReindexing(true);
+    try {
+      await Promise.all(toReindex.map((f) => reindexDocument(f.document_id, f.path)));
+      await loadFiles();
+      setSelected(new Set());
+      window.dispatchEvent(new CustomEvent("index-updated"));
+    } catch (e) {
+      console.error("Reindex failed", e);
+    } finally {
+      setReindexing(false);
+    }
+  };
+
   return (
     <div className="flex h-full flex-col p-6 lg:p-8">
       <header className="mb-5 flex flex-col gap-4 border-b border-[var(--surface-border)] pb-5 lg:flex-row lg:items-end lg:justify-between">
@@ -164,6 +194,15 @@ export default function FilesPage() {
           >
             <Trash2 size={16} />
             {deleting ? "删除中..." : `删除索引 ${selectedIndexedFiles.length || ""}`.trim()}
+          </button>
+          <button
+            onClick={handleReindex}
+            disabled={reindexing || !hasSelectedIndexed}
+            className="inline-flex h-10 items-center gap-2 rounded-md border border-[var(--surface-border)] bg-[var(--surface-panel)] px-3 text-sm font-medium text-[var(--text-secondary)] shadow-[var(--shadow-sm)] transition-colors hover:bg-[var(--surface-alt)] disabled:opacity-50"
+            title="重新索引选中文件"
+          >
+            <RotateCw size={16} className={reindexing ? "animate-spin" : ""} />
+            {reindexing ? "重新索引中..." : "重新索引"}
           </button>
           <button
             onClick={loadFiles}
@@ -253,7 +292,7 @@ export default function FilesPage() {
             </div>
           </div>
         ) : (
-          <FileTree files={files} selected={selected} onToggle={toggleFile} />
+          <FileTree files={files} selected={selected} onToggle={toggleFile} onTagUpdate={handleTagUpdate} />
         )}
       </div>
     </div>

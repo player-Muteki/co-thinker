@@ -48,6 +48,7 @@ class FileCatalog:
             return []
 
         indexed_map = self._build_indexed_map()
+        doc_meta = self._build_document_meta()
 
         files: list[dict[str, Any]] = []
         for path in scan_root.rglob("*"):
@@ -66,6 +67,7 @@ class FileCatalog:
                     "is_dir": True,
                     "is_indexed": False,
                     "document_id": "",
+                    "tags": [],
                 })
             elif path.is_file():
                 if path.suffix.lower() not in self.ext_set:
@@ -75,6 +77,7 @@ class FileCatalog:
 
                 sp = str(rel)
                 doc_id = indexed_map.get(sp, "")
+                meta = doc_meta.get(sp, {})
                 files.append({
                     "path": sp,
                     "name": path.name,
@@ -84,6 +87,7 @@ class FileCatalog:
                     "is_dir": False,
                     "is_indexed": bool(doc_id),
                     "document_id": doc_id,
+                    "tags": meta.get("tags", []),
                 })
 
         files.sort(key=lambda f: (not f["is_dir"], f["path"]))
@@ -146,3 +150,19 @@ class FileCatalog:
         except Exception as exc:
             logger.warning("Failed to build indexed map from manifest: %s", exc)
         return indexed_map
+
+    def _build_document_meta(self) -> dict[str, dict[str, object]]:
+        """从 manifest 构建 {source_path → {document_id, tags}} 映射。"""
+        if self.manifest is None:
+            return {}
+        meta: dict[str, dict[str, object]] = {}
+        try:
+            for doc in self.manifest.list_documents():
+                if doc.get("status") == "indexed":
+                    meta[doc["source_path"]] = {
+                        "document_id": doc["document_id"],
+                        "tags": doc.get("tags", []),
+                    }
+        except Exception as exc:
+            logger.warning("Failed to build document meta from manifest: %s", exc)
+        return meta

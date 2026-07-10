@@ -128,6 +128,16 @@ class DocumentManifest:
     def list_documents(self) -> list[dict[str, Any]]:
         return list(self.data["documents"].values())
 
+    def update_tags(self, document_id: str, tags: list[str]) -> dict[str, Any] | None:
+        """更新指定文档的 tags 字段并持久化。"""
+        doc = self.data["documents"].get(document_id)
+        if not doc:
+            return None
+        doc["tags"] = tags
+        doc["updated_at"] = utc_now_iso()
+        self.save()
+        return doc
+
 
 class VectorStore:
     def __init__(self, path: Path):
@@ -414,6 +424,10 @@ class IngestionEngine:
     def list_documents(self) -> list[dict[str, Any]]:
         documents = self.manifest.list_documents()
         return sorted(documents, key=lambda item: item.get("updated_at", ""), reverse=True)
+
+    def update_document_tags(self, document_id: str, tags: list[str]) -> dict[str, Any] | None:
+        """更新指定文档的 tags 并返回更新后的记录。"""
+        return self.manifest.update_tags(document_id, tags)
 
     def _build_chunks(
         self,

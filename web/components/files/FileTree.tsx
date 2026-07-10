@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useMemo } from "react";
-import { File, FileText, Folder, FolderOpen, CheckSquare, Square, ChevronRight, ChevronDown } from "lucide-react";
+import { File, FileText, Folder, FolderOpen, CheckSquare, Square, ChevronRight, ChevronDown, X, Plus } from "lucide-react";
 
 interface FileItem {
   path: string;
@@ -13,12 +13,14 @@ interface FileItem {
   is_dir: boolean;
   is_indexed: boolean;
   document_id: string;
+  tags: string[];
 }
 
 interface FileTreeProps {
   files: FileItem[];
   selected: Set<string>;
   onToggle: (path: string) => void;
+  onTagUpdate?: (documentId: string, tags: string[]) => void;
 }
 
 const FileIcon = <File size={16} className="text-[var(--text-secondary)]" />;
@@ -38,8 +40,25 @@ function formatFileSize(size: number): string {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function FileTree({ files, selected, onToggle }: FileTreeProps) {
+export default function FileTree({ files, selected, onToggle, onTagUpdate }: FileTreeProps) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set(["", "root"]));
+  const [tagInput, setTagInput] = useState<{ docId: string; value: string } | null>(null);
+  const tagInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (tagInput) tagInputRef.current?.focus();
+  }, [tagInput]);
+
+  const handleTagAdd = (docId: string, currentTags: string[], newTag: string) => {
+    const trimmed = newTag.trim();
+    if (!trimmed || currentTags.includes(trimmed)) return;
+    onTagUpdate?.(docId, [...currentTags, trimmed]);
+    setTagInput(null);
+  };
+
+  const handleTagRemove = (docId: string, currentTags: string[], tag: string) => {
+    onTagUpdate?.(docId, currentTags.filter((t) => t !== tag));
+  };
 
   // Build tree structure — memoized to avoid O(n) rebuild per render
   interface TreeNode {
@@ -168,6 +187,65 @@ export default function FileTree({ files, selected, onToggle }: FileTreeProps) {
               已索引
             </span>
           )}
+
+          {node.file?.is_indexed && node.file.tags.length > 0 && (
+            <div className="hidden items-center gap-1 sm:flex">
+              {node.file.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-0.5 rounded bg-[var(--accent-soft)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--accent)]"
+                >
+                  {tag}
+                  {onTagUpdate && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleTagRemove(node.file!.document_id, node.file!.tags, tag); }}
+                      className="hover:text-[var(--accent-hover)]"
+                    >
+                      <X size={10} />
+                    </button>
+                  )}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {node.file?.is_indexed && onTagUpdate && tagInput?.docId === node.file.document_id ? (
+            <input
+              ref={tagInputRef}
+              value={tagInput.value}
+              onChange={(e) => setTagInput({ ...tagInput, value: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleTagAdd(node.file!.document_id, node.file!.tags, tagInput.value);
+                }
+                if (e.key === "Escape") setTagInput(null);
+              }}
+              onBlur={() => {
+                if (tagInput.value.trim()) {
+                  handleTagAdd(node.file!.document_id, node.file!.tags, tagInput.value);
+                } else {
+                  setTagInput(null);
+                }
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="h-5 w-20 rounded border border-[var(--accent)] bg-[var(--surface-bg)] px-1 text-[10px] text-[var(--text-primary)] outline-none"
+              placeholder="输入标签"
+            />
+          ) : node.file?.is_indexed && onTagUpdate ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setTagInput({ docId: node.file!.document_id, value: "" });
+              }}
+              className="hidden shrink-0 rounded p-0.5 text-[var(--text-muted)] hover:text-[var(--accent)] sm:block"
+              title="添加标签"
+            >
+              <Plus size={12} />
+            </button>
+          ) : null}
         </div>
 
         {node.is_dir && isExpanded && hasChildren && (
