@@ -189,7 +189,7 @@ export default function ChatSessionPage() {
 
       setStreaming(true);
       setEditContent(null);
-      stream.sendQuery(content, options?.model, { deepthink: options?.deepthink, search: options?.search });
+      stream.sendQuery(content, options?.model);
     },
     []
   );
