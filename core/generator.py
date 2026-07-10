@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import logging
-from core.project import ProjectConfig
 import time
 from dataclasses import dataclass, field
 from typing import Any, Iterable
 
-logger = logging.getLogger(__name__)
-
-from core.retriever import RetrievalResults
+from core.exceptions import LLMRetryError
 from core.project import ProjectConfig
+from core.retriever import RetrievalResults
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_RAG_SYSTEM_PROMPT = """你是 Co-Thinker，一个基于领域知识库的问答助手。
 You are Co-Thinker, a Q&A assistant grounded in a domain-specific knowledge base.
@@ -72,8 +72,7 @@ class GenerationResult:
     error: str | None = None
 
 
-class LLMRetryError(Exception):
-    """Raised when all LLM retry attempts are exhausted."""
+from core.exceptions import LLMRetryError
 
 
 def _llm_call_with_retry(

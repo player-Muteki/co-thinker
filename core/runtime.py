@@ -70,20 +70,20 @@ class WorkspaceRuntime:
 
         这是 deps.py 和 cli.py 中重复 bootstrap 逻辑的统一版本。
         """
-        from core.project import ProjectContext, get_api_key, get_llm, get_embedding_model
+        from core.project import ProjectContext
 
         ctx = ProjectContext.load(explicit_root)
 
         # API Key（可能没有）
-        if get_api_key(ctx):
+        if ctx.get_api_key():
             try:
-                ctx.llm = get_llm(ctx)
+                ctx.llm = ctx.get_llm()
             except Exception:
                 logger.warning("Failed to initialize LLM, continuing without it")
                 pass
 
         # Embedding 模型（可能没有）
-        ctx.embedding_model = get_embedding_model(ctx)
+        ctx.embedding_model = ctx.get_embedding_model()
 
         # 组装引擎
         ctx.setup_engines()

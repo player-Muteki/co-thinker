@@ -29,10 +29,9 @@ async def get_config(
     ctx: Any = Depends(get_project_context),
 ):
     """返回当前配置（API key 仅返回是否存在）。"""
-    from core.project import get_api_key, _global_model_base_url, GLOBAL_CONFIG_PATH
     return {
-        "api_key_configured": bool(get_api_key(ctx.ctx)),
-        "base_url": _global_model_base_url() or ctx.config.base_url,
+        "api_key_configured": bool(ctx.ctx.get_api_key()),
+        "base_url": ctx.config.base_url,
         "model": ctx.config.model,
         "top_k": ctx.config.top_k,
         "chunk_size": ctx.config.chunk_size,
@@ -44,11 +43,10 @@ async def list_models(
     ctx: Any = Depends(get_project_context),
 ):
     """从当前配置的 API 提供商获取可用模型列表。"""
-    from core.project import get_api_key, _global_model_base_url
-    api_key = get_api_key(ctx.ctx)
+    api_key = ctx.ctx.get_api_key()
     if not api_key:
         return {"models": []}
-    base_url = _global_model_base_url() or ctx.config.base_url
+    base_url = ctx.config.base_url
     fallback = [{"id": "deepseek-v4-flash", "name": "deepseek-v4-flash"}, {"id": "deepseek-v4-pro", "name": "deepseek-v4-pro"}]
     try:
         from openai import OpenAI
@@ -74,12 +72,11 @@ async def test_connection(
 ):
     """测试 API 供应商连通性，返回延迟与状态。"""
     import time
-    from core.project import get_api_key, _global_model_base_url
 
-    api_key = req.api_key or get_api_key(ctx.ctx)
+    api_key = req.api_key or ctx.ctx.get_api_key()
     if not api_key:
         return {"status": "error", "model": req.model or ctx.config.model, "elapsed_ms": 0, "error": "未配置 API Key"}
-    base_url = req.base_url or _global_model_base_url() or ctx.config.base_url
+    base_url = req.base_url or ctx.config.base_url
     model = req.model or ctx.config.model
 
     start = time.perf_counter()
@@ -126,16 +123,8 @@ async def save_config(
     if req.api_key is not None or req.base_url is not None:
         try:
             import tomli_w
-            from core.project import GLOBAL_CONFIG_PATH
-            global_cfg = {}
-            if GLOBAL_CONFIG_PATH.exists():
-                raw = GLOBAL_CONFIG_PATH.read_text(encoding="utf-8")
-                if raw.strip():
-                    try:
-                        import tomli
-                        global_cfg = tomli.loads(raw)
-                    except Exception:
-                        logger.warning("Failed to parse existing global config, starting fresh")
+            from core.project import GLOBAL_CONFIG_PATH, _load_global_config
+            global_cfg = _load_global_config()
             if req.api_key is not None:
                 global_cfg.setdefault("auth", {})
                 global_cfg["auth"]["api_key"] = req.api_key
@@ -145,12 +134,11 @@ async def save_config(
             GLOBAL_CONFIG_PATH.write_text(tomli_w.dumps(global_cfg), encoding="utf-8")
 
             # 重新初始化 LLM，使新 key 立即生效
-            from core.project import get_llm, get_embedding_model
             try:
-                ctx.ctx.llm = get_llm(ctx.ctx)
+                ctx.ctx.llm = ctx.ctx.get_llm()
             except Exception:
                 ctx.ctx.llm = None
-            ctx.ctx.embedding_model = get_embedding_model(ctx.ctx)
+            ctx.ctx.embedding_model = ctx.ctx.get_embedding_model()
             ctx.ctx.setup_engines()
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"保存 API 配置失败: {e}")

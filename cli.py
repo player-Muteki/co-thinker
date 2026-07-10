@@ -87,20 +87,15 @@ def _get_web_dir() -> Path:
     return Path(__file__).resolve().parent / "web"
 
 
-def _sanitize_env(keep_pythonpath: bool = False) -> dict[str, str]:
-    """构建子进程环境变量。
+def _sanitize_env() -> dict[str, str]:
+    """构建子进程环境变量，清除继承的 PYTHONPATH 中指向项目内部的缓存路径。
 
-    清除继承的 PYTHONPATH 中指向项目内部的缓存路径（如 .local-pkgs），
     避免子进程加载过时的原生扩展（如 Python 版本升级后的 .so 不兼容）。
     """
     env = os.environ.copy()
-    if not keep_pythonpath and "PYTHONPATH" in env:
+    if "PYTHONPATH" in env:
         pp = env["PYTHONPATH"]
-        cleaned = []
-        for p in pp.split(os.pathsep):
-            p_stripped = p.strip()
-            if p_stripped and ".local-pkgs" not in p_stripped:
-                cleaned.append(p_stripped)
+        cleaned = [p for p in pp.split(os.pathsep) if p.strip() and ".local-pkgs" not in p]
         if cleaned:
             env["PYTHONPATH"] = os.pathsep.join(cleaned)
         else:
@@ -330,128 +325,33 @@ def upgrade(
     yes: bool = typer.Option(False, "--yes", "-y", help="跳过确认提示"),
 ) -> None:
     """将 Co-Thinker 更新到最新版本"""
-    import json
-    import urllib.request
-    import urllib.error
-
     print(_banner(__version__))
-
-    # 1. 获取当前版本
     typer.echo(f"当前版本: {__version__}")
 
-    # 2. 获取线上最新版本
-    repo = "player-Muteki/co-thinker"
-    api_url = f"https://api.github.com/repos/{repo}/releases/latest"
-    typer.echo("[INFO] 正在检查更新...")
+    latest, wheel_url, wheel_sha = _fetch_latest_release_info()
+    typer.echo(f"最新版本: {latest}")
 
-    try:
-        headers = {"Accept": "application/json"}
-        # 如有 GitHub Token 则附带认证，避免 API 速率限制
-        gh_token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or ""
-        if gh_token:
-            headers["Authorization"] = f"Bearer {gh_token}"
-        req = urllib.request.Request(api_url, headers=headers)
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            data = json.loads(resp.read().decode())
-    except (urllib.error.URLError, json.JSONDecodeError, OSError) as e:
-        typer.echo(f"[ERROR] 无法获取最新版本信息: {e}")
-        raise typer.Exit(1)
-
-    latest_tag = data.get("tag_name", "")
-    latest_version = latest_tag.lstrip("v") if latest_tag else ""
-    if not latest_version:
-        typer.echo("[ERROR] 无法解析最新版本号")
-        raise typer.Exit(1)
-
-    # 获取 wheel 信息
-    wheel_url = None
-    wheel_sha = None
-    for asset in data.get("assets", []):
-        if asset.get("name", "").endswith(".whl"):
-            wheel_url = asset.get("browser_download_url")
-            wheel_sha = asset.get("sha256") or None
-            break
-
-    typer.echo(f"最新版本: {latest_version}")
-
-    # 3. 比较版本号（优先用 packaging，fallback 到字符串比较）
-    try:
-        from packaging.version import parse as parse_version
-        is_newer = parse_version(latest_version) > parse_version(__version__)
-    except ImportError:
-        is_newer = latest_version != __version__
-    if not is_newer:
+    if not _is_newer_version(latest, __version__):
         typer.echo("[OK] 已是最新版本，无需更新")
         raise typer.Exit()
 
-    typer.echo(f"[NEW] 发现新版本: {__version__} → {latest_version}")
+    typer.echo(f"[NEW] 发现新版本: {__version__} → {latest}")
 
     if not wheel_url:
         typer.echo("[ERROR] 未找到可下载的 wheel 文件")
         raise typer.Exit(1)
 
-    # 4. 确认或跳过
-    if not yes:
-        if not typer.confirm("是否现在更新?", default=True):
-            typer.echo("[SKIP] 已取消")
-            raise typer.Exit()
+    if not yes and not typer.confirm("是否现在更新?", default=True):
+        typer.echo("[SKIP] 已取消")
+        raise typer.Exit()
 
-    # 5. 下载 wheel
-    typer.echo("[INFO] 正在下载最新版本...")
-    import hashlib
-    import tempfile
-    tmp_dir = tempfile.mkdtemp()
-    wheel_name = wheel_url.split("/")[-1]
-    wheel_path = Path(tmp_dir) / wheel_name
-
-    try:
-        urllib.request.urlretrieve(wheel_url, str(wheel_path))
-    except (urllib.error.URLError, OSError) as e:
-        typer.echo(f"[ERROR] 下载失败: {e}")
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-        raise typer.Exit(1)
-
-    # 校验 wheel SHA256（如果 release 提供了）
-    if wheel_sha:
-        actual_sha = hashlib.sha256(wheel_path.read_bytes()).hexdigest()
-        if actual_sha != wheel_sha:
-            typer.echo(f"[ERROR] wheel 校验失败: SHA256 不匹配")
-            typer.echo(f"  期望: {wheel_sha}")
-            typer.echo(f"  实际: {actual_sha}")
-            shutil.rmtree(tmp_dir, ignore_errors=True)
-            raise typer.Exit(1)
-        typer.echo("[OK] wheel 校验通过")
-
-    typer.echo(f"[OK] 下载完成: {wheel_name}")
-
-    # 6. 记录当前版本，准备回滚
-    old_version = __version__
-
-    # 7. pip install --upgrade
-    typer.echo("[INFO] 正在安装更新...")
-    result = subprocess.run(
-        [sys.executable, "-m", "pip", "install", "--upgrade", str(wheel_path)],
-        capture_output=True, text=True, timeout=120,
-    )
-    if result.returncode != 0:
-        typer.echo(f"[ERROR] 安装失败:\n{result.stderr}")
-        typer.echo(f"[INFO] 可手动回滚: pip install co-thinker=={old_version}")
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-        raise typer.Exit(1)
+    wheel_path = _download_wheel(wheel_url, wheel_sha)
+    _install_wheel(wheel_path)
+    _cleanup_temp(wheel_path.parent)
+    _clear_nextjs_cache()
 
     typer.echo("[OK] 更新完成！")
-    typer.echo(f"版本: {latest_version}")
-
-    # 8. 清理临时文件
-    shutil.rmtree(tmp_dir, ignore_errors=True)
-
-    # 9. 删除前端构建缓存，确保下次 start 时重建
-    next_dir = _get_web_dir() / ".next"
-    if next_dir.exists():
-        typer.echo("[INFO] 清理前端构建缓存以触发重建...")
-        shutil.rmtree(next_dir, ignore_errors=True)
-        typer.echo("[INFO] 下次 co-thinker start 将自动构建新版前端")
-
+    typer.echo(f"版本: {latest}")
 
 @app.command()
 def version():
@@ -470,6 +370,122 @@ def version():
 # ═══════════════════════════════════════════════════════════════════════
 #  Internal helpers
 # ═══════════════════════════════════════════════════════════════════════
+
+def _fetch_latest_release_info() -> tuple[str, str | None, str | None]:
+    """获取 GitHub 最新 release 的版本号、wheel URL 和 SHA256。"""
+    import json
+    import urllib.request
+    import urllib.error
+
+    repo = "player-Muteki/co-thinker"
+    api_url = f"https://api.github.com/repos/{repo}/releases/latest"
+    typer.echo("[INFO] 正在检查更新...")
+
+    try:
+        headers = {"Accept": "application/json"}
+        gh_token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or ""
+        if gh_token:
+            headers["Authorization"] = f"Bearer {gh_token}"
+        req = urllib.request.Request(api_url, headers=headers)
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode())
+    except (urllib.error.URLError, json.JSONDecodeError, OSError) as e:
+        typer.echo(f"[ERROR] 无法获取最新版本信息: {e}")
+        raise typer.Exit(1)
+
+    latest_tag = data.get("tag_name", "")
+    latest_version = latest_tag.lstrip("v") if latest_tag else ""
+    if not latest_version:
+        typer.echo("[ERROR] 无法解析最新版本号")
+        raise typer.Exit(1)
+
+    wheel_url: str | None = None
+    wheel_sha: str | None = None
+    for asset in data.get("assets", []):
+        if asset.get("name", "").endswith(".whl"):
+            wheel_url = asset.get("browser_download_url")
+            wheel_sha = asset.get("sha256") or None
+            break
+
+    return latest_version, wheel_url, wheel_sha
+
+
+def _is_newer_version(latest: str, current: str) -> bool:
+    """比较版本号，latest > current 返回 True。"""
+    try:
+        from packaging.version import parse as parse_version
+        return parse_version(latest) > parse_version(current)
+    except ImportError:
+        return latest != current
+
+
+def _download_wheel(wheel_url: str, expected_sha: str | None) -> Path:
+    """下载 wheel 文件并校验 SHA256（如果提供了）。返回下载后的路径。"""
+    import hashlib
+    import tempfile
+    import urllib.request
+    import urllib.error
+
+    typer.echo("[INFO] 正在下载最新版本...")
+    tmp_dir = tempfile.mkdtemp()
+    wheel_name = wheel_url.split("/")[-1]
+    wheel_path = Path(tmp_dir) / wheel_name
+
+    try:
+        urllib.request.urlretrieve(wheel_url, str(wheel_path))
+    except (urllib.error.URLError, OSError) as e:
+        typer.echo(f"[ERROR] 下载失败: {e}")
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        raise typer.Exit(1)
+
+    if expected_sha:
+        _verify_wheel_sha(wheel_path, expected_sha)
+
+    typer.echo(f"[OK] 下载完成: {wheel_name}")
+    return wheel_path
+
+
+def _verify_wheel_sha(wheel_path: Path, expected_sha: str) -> None:
+    """校验 wheel 文件的 SHA256 哈希。"""
+    import hashlib
+
+    actual_sha = hashlib.sha256(wheel_path.read_bytes()).hexdigest()
+    if actual_sha != expected_sha:
+        typer.echo("[ERROR] wheel 校验失败: SHA256 不匹配")
+        typer.echo(f"  期望: {expected_sha}")
+        typer.echo(f"  实际: {actual_sha}")
+        shutil.rmtree(wheel_path.parent, ignore_errors=True)
+        raise typer.Exit(1)
+    typer.echo("[OK] wheel 校验通过")
+
+
+def _install_wheel(wheel_path: Path) -> None:
+    """pip install --upgrade wheel 文件。"""
+    typer.echo("[INFO] 正在安装更新...")
+    result = subprocess.run(
+        [sys.executable, "-m", "pip", "install", "--upgrade", str(wheel_path)],
+        capture_output=True, text=True, timeout=120,
+    )
+    if result.returncode != 0:
+        typer.echo(f"[ERROR] 安装失败:\n{result.stderr}")
+        typer.echo(f"[INFO] 可手动回滚: pip install co-thinker=={__version__}")
+        shutil.rmtree(wheel_path.parent, ignore_errors=True)
+        raise typer.Exit(1)
+
+
+def _cleanup_temp(tmp_dir: Path) -> None:
+    """清理临时下载目录。"""
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+def _clear_nextjs_cache() -> None:
+    """删除前端构建缓存，确保下次 start 时重建。"""
+    next_dir = _get_web_dir() / ".next"
+    if next_dir.exists():
+        typer.echo("[INFO] 清理前端构建缓存以触发重建...")
+        shutil.rmtree(next_dir, ignore_errors=True)
+        typer.echo("[INFO] 下次 co-thinker start 将自动构建新版前端")
+
 
 
 def _write_default_config(path: Path) -> None:
@@ -534,7 +550,7 @@ def _start_full_stack(web_dir: Path, port: int, api_port: int, cwd: Path, open_b
         _start_api_only(api_port, cwd)
         return
 
-    env = _sanitize_env(keep_pythonpath=False)
+    env = _sanitize_env()
     env["NEXT_PUBLIC_API_URL"] = f"http://localhost:{api_port}"
     web_proc = _start_nextjs(web_dir, port, env)
 
@@ -663,7 +679,7 @@ def _add_node_paths() -> None:
 def _start_api_process(api_port: int, cwd: Path) -> subprocess.Popen:
     """启动 FastAPI 后端进程。"""
     typer.echo(f"[API] 启动 FastAPI 服务 (port {api_port})...")
-    env = _sanitize_env(keep_pythonpath=False)
+    env = _sanitize_env()
     env["CO_THINKER_ROOT"] = str(cwd)
 
     # 如果运行在源码环境，确保 PYTHONPATH 指向项目根目录，

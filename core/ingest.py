@@ -282,7 +282,7 @@ class IngestionEngine:
                 document_id=document_id, content_hash=content_hash, tags=tags,
             )
             self._embed_and_store(chunks)
-            self._write_manifest(source_path, path, document_id, content_hash, chunks, existing, tags)
+            self._write_manifest(path, document_id, content_hash, chunks, existing, tags)
 
             return FileIngestResult(
                 path=source_path, status="indexed",
@@ -324,9 +324,10 @@ class IngestionEngine:
             chunk.embedding = embedding
         self.vector_store.upsert_chunks(chunks)
 
-    def _write_manifest(self, source_path: str, path: Path, document_id: str, content_hash: str,
+    def _write_manifest(self, path: Path, document_id: str, content_hash: str,
                         chunks: list[ChunkRecord], existing: dict[str, Any] | None, tags: list[str]) -> None:
         """将索引结果写入 manifest。"""
+        source_path = self._display_path(path)
         now = utc_now_iso()
         record = {
             "document_id": document_id,
@@ -345,7 +346,16 @@ class IngestionEngine:
         }
         self.manifest.upsert_document(record)
 
-    def rebuild_index(self, force: bool = False) -> IngestSummary:
+    def rebuild_index(self) -> IngestSummary:
+        """增量重建索引：移除已删除文件后重新索引当前文件。"""
+        return self._rebuild(force=False)
+
+    def force_rebuild_index(self) -> IngestSummary:
+        """强制全量重建索引：清空后重新索引所有文件。"""
+        return self._rebuild(force=True)
+
+    def _rebuild(self, force: bool) -> IngestSummary:
+        """重建索引的通用实现。force=True 时先清空所有数据。"""
         import logging as _logging
 
         logger = _logging.getLogger(__name__)
@@ -377,7 +387,7 @@ class IngestionEngine:
             )
         return summary
 
-    def delete_file(self, document_id_or_path: str, delete_source: bool = False) -> FileIngestResult:
+    def delete_file(self, document_id_or_path: str) -> FileIngestResult:
         record = self.manifest.get(document_id_or_path)
         if record is None:
             record = self.manifest.find_by_path(document_id_or_path)
@@ -388,10 +398,6 @@ class IngestionEngine:
         source_path = record["source_path"]
         removed = self.vector_store.delete_by_document_id(document_id)
         self.manifest.remove_document(document_id)
-
-        path = Path(source_path)
-        if delete_source and path.exists():
-            path.unlink()
 
         return FileIngestResult(
             path=source_path,
@@ -457,6 +463,7 @@ class IngestionEngine:
         return chunks
 
     def _split_text(self, text: str) -> list[str]:
+        """将文本切分为重叠的 chunk 列表。"""
         target_chars = self.config.chunk_size
         overlap_chars = self.config.chunk_overlap
 
@@ -473,16 +480,7 @@ class IngestionEngine:
                     chunks.append(chunk)
                 break
 
-            end = start + target_chars
-
-            # Prefer paragraph breaks, then line breaks
-            paragraph_break = text.rfind("\n\n", start + 1, end)
-            if paragraph_break > start and paragraph_break - start >= target_chars // 2:
-                end = paragraph_break
-            else:
-                line_break = text.rfind("\n", start + 1, end)
-                if line_break > start and line_break - start >= target_chars // 2:
-                    end = line_break
+            end = self._find_chunk_boundary(text, start, target_chars)
 
             chunk = text[start:end].strip()
             if chunk:
@@ -491,31 +489,41 @@ class IngestionEngine:
             if end >= len(text):
                 break
 
-            # Compute overlap start within [end - overlap_chars, end)
-            # The overlap window is the last O characters of the just-extracted
-            # chunk.  The next chunk starts somewhere inside this window so the
-            # boundaries of adjacent chunks overlap by (up to) overlap_chars.
-            overlap_window_start = max(end - overlap_chars, 0)
-            if overlap_window_start >= end:
-                overlap_window_start = end - 1
-
-            overlap_start = overlap_window_start
-            if overlap_window_start < len(text):
-                # Search for a clean break point *within* the overlap window
-                next_paragraph = text.find("\n\n", overlap_window_start)
-                if overlap_window_start <= next_paragraph < end:
-                    overlap_start = next_paragraph + 2
-                else:
-                    next_line = text.find("\n", overlap_window_start)
-                    if overlap_window_start <= next_line < end:
-                        overlap_start = next_line + 1
-
-            # Safety guard: always make forward progress
-            # Use at least 25% of target_chars to prevent degenerate tiny chunks
-            min_progress = max(1, target_chars // 4)
-            start = max(overlap_start, start + min_progress)
+            start = self._compute_next_start(text, end, overlap_chars, target_chars, start)
 
         return chunks
+
+    @staticmethod
+    def _find_chunk_boundary(text: str, start: int, target_chars: int) -> int:
+        """在 [start, start+target_chars] 范围内寻找段落/换行断点。"""
+        end = start + target_chars
+        paragraph_break = text.rfind("\n\n", start + 1, end)
+        if paragraph_break > start and paragraph_break - start >= target_chars // 2:
+            return paragraph_break
+        line_break = text.rfind("\n", start + 1, end)
+        if line_break > start and line_break - start >= target_chars // 2:
+            return line_break
+        return end
+
+    @staticmethod
+    def _compute_next_start(text: str, end: int, overlap_chars: int, target_chars: int, previous_start: int) -> int:
+        """计算下一个 chunk 在重叠窗口内的起始位置。"""
+        overlap_window_start = max(end - overlap_chars, 0)
+        if overlap_window_start >= end:
+            overlap_window_start = end - 1
+
+        overlap_start = overlap_window_start
+        if overlap_window_start < len(text):
+            next_paragraph = text.find("\n\n", overlap_window_start)
+            if overlap_window_start <= next_paragraph < end:
+                overlap_start = next_paragraph + 2
+            else:
+                next_line = text.find("\n", overlap_window_start)
+                if overlap_window_start <= next_line < end:
+                    overlap_start = next_line + 1
+
+        min_progress = max(1, target_chars // 4)
+        return max(overlap_start, previous_start + min_progress)
 
     def _extract_text(self, path: Path, file_bytes: bytes, file_ext: str) -> str:
         parser = self.parser_registry.get(file_ext)

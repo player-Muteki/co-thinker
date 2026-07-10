@@ -70,19 +70,13 @@ def _load_global_config() -> dict[str, Any]:
         return {}
 
 
-def _global_auth_api_key() -> str:
-    """从 ~/.co-thinkerc 读取 API Key。"""
-    cfg = _load_global_config()
-    return cfg.get("auth", {}).get("api_key", "")
-
-
-def _global_model_name() -> str:
-    cfg = _load_global_config()
+def _global_model_name(global_cfg: dict[str, Any] | None = None) -> str:
+    cfg = global_cfg if global_cfg is not None else _load_global_config()
     return cfg.get("model", {}).get("name", "")
 
 
-def _global_model_base_url() -> str:
-    cfg = _load_global_config()
+def _global_model_base_url(global_cfg: dict[str, Any] | None = None) -> str:
+    cfg = global_cfg if global_cfg is not None else _load_global_config()
     return cfg.get("model", {}).get("base_url", "")
 
 
@@ -198,6 +192,7 @@ class ProjectContext:
         self.sessions_path = self.co_dir / "sessions.json"
 
         self.config = ProjectConfig.load(self.config_path)
+        self._global_config: dict[str, Any] = _load_global_config()
 
         # 各种引擎（由外部工厂组装后设置）
         self.vectorstore: Any | None = None
@@ -269,6 +264,66 @@ class ProjectContext:
         """持久化当前配置。"""
         self.config.save(self.config_path)
 
+    # ── API Key / LLM / Embedding ──────────────────────────────────
+
+    def get_api_key(self) -> str:
+        """获取 API Key，优先级：进程环境变量 > ~/.co-thinkerc > .co-thinker/.env（兼容旧版）。"""
+        key = os.getenv("DEEPSEEK_API_KEY", "")
+        if not key:
+            key = self._global_config.get("auth", {}).get("api_key", "")
+        if not key:
+            if self.env_path.exists():
+                m = _re.search(r'^DEEPSEEK_API_KEY=(.+)$', self.env_path.read_text(encoding="utf-8"), _re.MULTILINE)
+                if m:
+                    key = m.group(1).strip().strip('"\'')
+        return key
+
+    def get_llm(self) -> Any:
+        """创建 OpenAI 兼容客户端。base_url 优先级：全局 ~/.co-thinkerc > 项目配置 > 默认值。"""
+        api_key = self.get_api_key()
+        if not api_key:
+            raise ValueError("DEEPSEEK_API_KEY 未设置")
+        base_url = _global_model_base_url(self._global_config) or self.config.base_url
+        try:
+            from openai import OpenAI
+        except ImportError:
+            raise RuntimeError("openai 包未安装")
+        return OpenAI(api_key=api_key, base_url=base_url)
+
+    def get_embedding_model(self) -> Any | None:
+        """创建 embedding 模型（如果配置了）。"""
+        if not self.config.embedding_model:
+            return None
+        try:
+            from openai import OpenAI
+        except ImportError:
+            return None
+        api_key = self.config.embedding_api_key or self.get_api_key()
+        if not self.config.embedding_api_key and self.config.embedding_base_url != self.config.base_url:
+            logger.warning(
+                "EMBEDDING_BASE_URL differs from the LLM base URL, but EMBEDDING_API_KEY is not set. "
+                "Falling back to the LLM API key — if the embedding provider is not DeepSeek, "
+                "set EMBEDDING_API_KEY explicitly to avoid sending credentials to a third party."
+            )
+        client = OpenAI(api_key=api_key or "not-needed", base_url=self.config.embedding_base_url)
+
+        class EmbeddingModel:
+            def __init__(self, model_name: str, client: Any):
+                self.model_name = model_name
+                self.client = client
+
+            def get_text_embedding(self, text: str) -> list[float]:
+                return self.get_text_embedding_batch([text])[0]
+
+            def get_query_embedding(self, query: str) -> list[float]:
+                return self.get_text_embedding(query)
+
+            def get_text_embedding_batch(self, texts: list[str]) -> list[list[float]]:
+                response = self.client.embeddings.create(input=texts, model=self.model_name)
+                return [item.embedding for item in response.data]
+
+        return EmbeddingModel(self.config.embedding_model, client)
+
     # ── 文件扫描 ─────────────────────────────────────────────────────
 
     def scan_files(self, subdir: str | None = None) -> list[dict[str, Any]]:
@@ -312,65 +367,6 @@ class ProjectContext:
         }
 
 
-# ── 辅助函数 ──────────────────────────────────────────────────────────
+# ── ProjectContext 方法 ────────────────────────────────────────────
 
-
-def get_api_key(ctx: ProjectContext) -> str:
-    """获取 API Key，优先级：进程环境变量 > ~/.co-thinkerc > .co-thinker/.env（兼容旧版）。"""
-    key = os.getenv("DEEPSEEK_API_KEY", "")
-    if not key:
-        key = _global_auth_api_key()
-    if not key:
-        if ctx.env_path.exists():
-            m = _re.search(r'^DEEPSEEK_API_KEY=(.+)$', ctx.env_path.read_text(encoding="utf-8"), _re.MULTILINE)
-            if m:
-                key = m.group(1).strip().strip('"\'')
-    return key
-
-
-def get_llm(ctx: ProjectContext) -> Any:
-    """创建 OpenAI 兼容客户端。base_url 优先级：全局 ~/.co-thinkerc > 项目配置 > 默认值。"""
-    api_key = get_api_key(ctx)
-    if not api_key:
-        raise ValueError("DEEPSEEK_API_KEY 未设置")
-    base_url = _global_model_base_url() or ctx.config.base_url
-    try:
-        from openai import OpenAI
-    except ImportError:
-        raise RuntimeError("openai 包未安装")
-    return OpenAI(api_key=api_key, base_url=base_url)
-
-
-def get_embedding_model(ctx: ProjectContext) -> Any | None:
-    """创建 embedding 模型（如果配置了）。"""
-    if not ctx.config.embedding_model:
-        return None
-    try:
-        from openai import OpenAI
-    except ImportError:
-        return None
-    api_key = ctx.config.embedding_api_key or get_api_key(ctx)
-    if not ctx.config.embedding_api_key and ctx.config.embedding_base_url != ctx.config.base_url:
-        logger.warning(
-            "EMBEDDING_BASE_URL differs from the LLM base URL, but EMBEDDING_API_KEY is not set. "
-            "Falling back to the LLM API key — if the embedding provider is not DeepSeek, "
-            "set EMBEDDING_API_KEY explicitly to avoid sending credentials to a third party."
-        )
-    client = OpenAI(api_key=api_key or "not-needed", base_url=ctx.config.embedding_base_url)
-
-    class EmbeddingModel:
-        def __init__(self, model_name: str, client: Any):
-            self.model_name = model_name
-            self.client = client
-
-        def get_text_embedding(self, text: str) -> list[float]:
-            return self.get_text_embedding_batch([text])[0]
-
-        def get_query_embedding(self, query: str) -> list[float]:
-            return self.get_text_embedding(query)
-
-        def get_text_embedding_batch(self, texts: list[str]) -> list[list[float]]:
-            response = self.client.embeddings.create(input=texts, model=self.model_name)
-            return [item.embedding for item in response.data]
-
-    return EmbeddingModel(ctx.config.embedding_model, client)
+# （get_api_key / get_llm / get_embedding_model 已作为 ProjectContext 的方法）

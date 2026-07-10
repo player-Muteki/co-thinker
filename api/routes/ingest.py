@@ -56,7 +56,7 @@ async def scan_and_index(
     if not ctx.ingest_engine:
         raise HTTPException(status_code=500, detail="Ingest engine not initialized")
 
-    summary = ctx.ingest_engine.rebuild_index(force=False)
+    summary = ctx.ingest_engine.rebuild_index()
     if ctx.retriever:
         ctx.retriever.invalidate_idf_cache()
 
@@ -78,7 +78,7 @@ async def rebuild_index(
     if not ctx.ingest_engine:
         raise HTTPException(status_code=500, detail="Ingest engine not initialized")
 
-    summary = ctx.ingest_engine.rebuild_index(force=True)
+    summary = ctx.ingest_engine.force_rebuild_index()
     if ctx.retriever:
         ctx.retriever.invalidate_idf_cache()
 
