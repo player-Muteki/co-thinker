@@ -7,22 +7,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import rehypeHighlight from "rehype-highlight";
-
-export interface RetrievalDetails {
-  mode: string;
-  elapsed_ms: number;
-  total_candidates: number;
-  effective_query: string;
-  results: Array<{
-    chunk_id: string;
-    source_path: string;
-    file_name: string;
-    score: number;
-    matched_by: string[];
-    vector_score?: number | null;
-    bm25_score?: number | null;
-  }>;
-}
+import type { RetrievalDetails } from "@/lib/api";
 
 export interface Message {
   id: string;

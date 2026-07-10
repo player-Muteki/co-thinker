@@ -47,8 +47,7 @@ class FileCatalog:
         if not scan_root.exists() or not scan_root.is_dir():
             return []
 
-        indexed_map = self._build_indexed_map()
-        doc_meta = self._build_document_meta()
+        doc_index = self._build_document_index()
 
         files: list[dict[str, Any]] = []
         for path in scan_root.rglob("*"):
@@ -76,8 +75,8 @@ class FileCatalog:
                     continue
 
                 sp = str(rel)
-                doc_id = indexed_map.get(sp, "")
-                meta = doc_meta.get(sp, {})
+                entry = doc_index.get(sp, {})
+                doc_id = entry.get("document_id", "")
                 files.append({
                     "path": sp,
                     "name": path.name,
@@ -87,7 +86,7 @@ class FileCatalog:
                     "is_dir": False,
                     "is_indexed": bool(doc_id),
                     "document_id": doc_id,
-                    "tags": meta.get("tags", []),
+                    "tags": entry.get("tags", []),
                 })
 
         files.sort(key=lambda f: (not f["is_dir"], f["path"]))
@@ -138,31 +137,21 @@ class FileCatalog:
 
     # ── 内部工具 ──────────────────────────────────────────────────
 
-    def _build_indexed_map(self) -> dict[str, str]:
-        """从 manifest 构建 {source_path → document_id} 映射。"""
-        if self.manifest is None:
-            return {}
-        indexed_map: dict[str, str] = {}
-        try:
-            for doc in self.manifest.list_documents():
-                if doc.get("status") == "indexed":
-                    indexed_map[doc["source_path"]] = doc["document_id"]
-        except Exception as exc:
-            logger.warning("Failed to build indexed map from manifest: %s", exc)
-        return indexed_map
+    def _build_document_index(self) -> dict[str, dict[str, object]]:
+        """从 manifest 构建 {source_path → {document_id, tags}} 映射。
 
-    def _build_document_meta(self) -> dict[str, dict[str, object]]:
-        """从 manifest 构建 {source_path → {document_id, tags}} 映射。"""
+        单次遍历同时提供索引状态和标签信息。
+        """
         if self.manifest is None:
             return {}
-        meta: dict[str, dict[str, object]] = {}
+        index: dict[str, dict[str, object]] = {}
         try:
             for doc in self.manifest.list_documents():
                 if doc.get("status") == "indexed":
-                    meta[doc["source_path"]] = {
+                    index[doc["source_path"]] = {
                         "document_id": doc["document_id"],
                         "tags": doc.get("tags", []),
                     }
         except Exception as exc:
-            logger.warning("Failed to build document meta from manifest: %s", exc)
-        return meta
+            logger.warning("Failed to build document index from manifest: %s", exc)
+        return index

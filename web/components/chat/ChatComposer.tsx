@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
-import { Send, Check } from "lucide-react";
+import { Send, Check, ChevronDown } from "lucide-react";
 
 const MODEL_KEY = "co-thinker-model";
 
@@ -40,7 +40,7 @@ export default function ChatComposer({
           setModels(data.models);
         }
       })
-      .catch(() => {});
+      .catch((e) => console.error("Failed to load models", e));
   }, []);
 
   useEffect(() => {
@@ -101,12 +101,7 @@ export default function ChatComposer({
             title="切换模型"
           >
             {selectedModel.length > 18 ? selectedModel.slice(0, 16) + "…" : selectedModel}
-            <svg
-              className={`h-3 w-3 transition-transform ${modelOpen ? "rotate-180" : ""}`}
-              viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-            >
-              <path d="m6 9 6 6 6-6" />
-            </svg>
+            <ChevronDown size={12} className={`transition-transform ${modelOpen ? "rotate-180" : ""}`} />
           </button>
           {modelOpen && (
             <div className="absolute bottom-full left-0 mb-1 w-48 max-h-60 overflow-y-auto rounded-md border border-[var(--surface-border)] bg-[var(--surface-panel)] py-1 shadow-[var(--shadow-md)]">

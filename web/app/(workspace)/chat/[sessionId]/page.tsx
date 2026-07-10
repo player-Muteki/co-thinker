@@ -5,8 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import ChatMessages, { type Message } from "@/components/chat/ChatMessages";
 import ChatComposer, { type SendOptions } from "@/components/chat/ChatComposer";
 import { MessageSquare, Wifi, WifiOff } from "lucide-react";
-import { ChatStream, type ConnectionStatus, type RetrievalDetails } from "@/lib/chat-stream";
-import { sessions, type SessionDetail } from "@/lib/api";
+import { ChatStream, type ConnectionStatus } from "@/lib/chat-stream";
+import { sessions, type RetrievalDetails, type SessionDetail } from "@/lib/api";
+import { useTypewriter } from "@/lib/use-typewriter";
 
 export default function ChatSessionPage() {
   const params = useParams();
@@ -21,12 +22,37 @@ export default function ChatSessionPage() {
   // Refs to track retrieval/reasoning state during streaming (avoids stale closures)
   const retrievalRef = useRef<RetrievalDetails | null>(null);
   const reasoningRef = useRef("");
-  const typewriterBufferRef = useRef("");
-  const typewriterTimerRef = useRef<NodeJS.Timeout | null>(null);
   const streamStartedRef = useRef(false);
 
   // ChatStream instance — stable across renders
   const streamRef = useRef<ChatStream | null>(null);
+
+  // Typewriter: streams content character by character
+  const { appendToBuffer } = useTypewriter({
+    streaming,
+    onChar: (char) => {
+      setSession((prev) => {
+        if (!prev) return prev;
+        const messages = [...prev.messages];
+        const last = messages[messages.length - 1];
+        if (last && last.role === "assistant") {
+          messages[messages.length - 1] = { ...last, content: last.content + char };
+        }
+        return { ...prev, messages };
+      });
+    },
+    onFlush: (remaining) => {
+      setSession((prev) => {
+        if (!prev) return prev;
+        const messages = [...prev.messages];
+        const last = messages[messages.length - 1];
+        if (last && last.role === "assistant") {
+          messages[messages.length - 1] = { ...last, content: last.content + remaining };
+        }
+        return { ...prev, messages };
+      });
+    },
+  });
 
   // Load session data
   const loadSession = useCallback(() => {
@@ -69,7 +95,7 @@ export default function ChatSessionPage() {
             return { ...prev, messages };
           });
         }
-        typewriterBufferRef.current += content;
+        appendToBuffer(content);
       },
 
       onReasoning: (content) => {
@@ -99,7 +125,6 @@ export default function ChatSessionPage() {
       onError: (message) => {
         setStreaming(false);
         streamStartedRef.current = false;
-        typewriterBufferRef.current = "";
         console.error("ChatStream error:", message);
       },
 
@@ -118,62 +143,12 @@ export default function ChatSessionPage() {
     };
   }, [sessionId, loadSession]);
 
-  // Typewriter effect: feed characters from buffer one by one
-  useEffect(() => {
-    if (!streaming) {
-      if (typewriterTimerRef.current) {
-        clearInterval(typewriterTimerRef.current);
-        typewriterTimerRef.current = null;
-      }
-      // Flush remaining buffer
-      if (typewriterBufferRef.current) {
-        const remaining = typewriterBufferRef.current;
-        typewriterBufferRef.current = "";
-        setSession((prev) => {
-          if (!prev) return prev;
-          const messages = [...prev.messages];
-          const last = messages[messages.length - 1];
-          if (last && last.role === "assistant") {
-            messages[messages.length - 1] = { ...last, content: last.content + remaining };
-          }
-          return { ...prev, messages };
-        });
-      }
-      return;
-    }
-
-    typewriterTimerRef.current = setInterval(() => {
-      const buf = typewriterBufferRef.current;
-      if (!buf) return;
-      // Emit one character at a time
-      const char = buf[0];
-      typewriterBufferRef.current = buf.slice(1);
-      setSession((prev) => {
-        if (!prev) return prev;
-        const messages = [...prev.messages];
-        const last = messages[messages.length - 1];
-        if (last && last.role === "assistant") {
-          messages[messages.length - 1] = { ...last, content: last.content + char };
-        }
-        return { ...prev, messages };
-      });
-    }, 30);
-
-    return () => {
-      if (typewriterTimerRef.current) {
-        clearInterval(typewriterTimerRef.current);
-        typewriterTimerRef.current = null;
-      }
-    };
-  }, [streaming]);
-
   const sendMessage = useCallback(
     (content: string, options?: SendOptions) => {
       const stream = streamRef.current;
       if (!stream) return;
 
       streamStartedRef.current = false;
-      typewriterBufferRef.current = "";
 
       // Add user message to local state immediately (optimistic)
       const userMessage: Message = {

@@ -87,6 +87,22 @@ export interface SessionListResponse {
   sessions: SessionSummary[];
 }
 
+export interface RetrievalDetails {
+  mode: string;
+  elapsed_ms: number;
+  total_candidates: number;
+  effective_query: string;
+  results: Array<{
+    chunk_id: string;
+    source_path: string;
+    file_name: string;
+    score: number;
+    matched_by: string[];
+    vector_score?: number | null;
+    bm25_score?: number | null;
+  }>;
+}
+
 // ── HTTP client ──────────────────────────────────────────────────
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
@@ -194,7 +210,11 @@ export async function reindexDocument(
   documentId: string,
   filePath: string
 ): Promise<void> {
-  await request(`/api/ingest/${documentId}`, { method: "DELETE" }).catch(() => {});
+  await request(`/api/ingest/${documentId}`, { method: "DELETE" }).catch((e) => {
+    // 404 意味着该文档尚不存在索引（首次索引或已被删除），可以继续
+    if (e instanceof Error && e.message.startsWith("API 404")) return;
+    throw e;
+  });
   await request("/api/ingest", {
     method: "POST",
     body: JSON.stringify({ paths: [filePath] }),

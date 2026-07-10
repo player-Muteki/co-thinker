@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import FileTree from "@/components/files/FileTree";
 import { RefreshCw, CheckSquare, Square, Search, Database, Trash2, RotateCw } from "lucide-react";
-import { getFiles, ingestFiles, updateDocument, reindexDocument, type FileItem } from "@/lib/api";
+import { getFiles, ingestFiles, updateDocument, reindexDocument, clearAllIndex, deleteDocument, type FileItem } from "@/lib/api";
 
 export default function FilesPage() {
   const [files, setFiles] = useState<FileItem[]>([]);
@@ -49,16 +49,12 @@ export default function FilesPage() {
     if (autoIndex && files.length > 0 && !loading) {
       const unindexedPaths = files.filter((f) => !f.is_dir && !f.is_indexed).map((f) => f.path);
       if (unindexedPaths.length > 0) {
-        fetch("/api/ingest", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paths: unindexedPaths }),
-        })
+        ingestFiles(unindexedPaths)
           .then(() => {
             loadFiles();
             window.dispatchEvent(new CustomEvent("index-updated"));
           })
-          .catch(() => {});
+          .catch((e) => console.error("Auto-index failed", e));
       }
     }
   }, [autoIndex, files.length]);
@@ -100,7 +96,7 @@ export default function FilesPage() {
     if (!confirm("确定清空所有索引？此操作不可撤销。")) return;
     setClearing(true);
     try {
-      await fetch("/api/ingest", { method: "DELETE" });
+      await clearAllIndex();
       await loadFiles();
       setSelected(new Set());
       window.dispatchEvent(new CustomEvent("index-updated"));
@@ -123,9 +119,7 @@ export default function FilesPage() {
     setDeleting(true);
     try {
       await Promise.all(
-        selectedIndexedFiles.map((f) =>
-          fetch(`/api/ingest/${f.document_id}`, { method: "DELETE" })
-        )
+        selectedIndexedFiles.map((f) => deleteDocument(f.document_id))
       );
       await loadFiles();
       setSelected(new Set());

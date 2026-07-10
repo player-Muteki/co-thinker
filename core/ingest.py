@@ -456,18 +456,6 @@ class IngestionEngine:
             chunks.append(ChunkRecord(chunk_id=chunk_id, document_id=document_id, text=chunk_text, metadata=metadata))
         return chunks
 
-    @staticmethod
-    def _estimate_tokens(text: str) -> int:
-        """Estimate token count without external tokenizer.
-
-        Rough heuristic: ~4 bytes per token for ASCII, ~2.5 bytes per token
-        for mixed CJK/Latin text. This is intentionally approximate.
-        """
-        if not text:
-            return 0
-        byte_len = len(text.encode("utf-8"))
-        return max(1, byte_len // 3)
-
     def _split_text(self, text: str) -> list[str]:
         target_chars = self.config.chunk_size
         overlap_chars = self.config.chunk_overlap

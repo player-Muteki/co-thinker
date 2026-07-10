@@ -17,25 +17,11 @@
  * ```
  */
 
+import type { RetrievalDetails } from "@/lib/api";
+
 // ── 类型 ─────────────────────────────────────────────────────────
 
 export type ConnectionStatus = "connecting" | "connected" | "disconnected";
-
-export interface RetrievalDetails {
-  mode: string;
-  elapsed_ms: number;
-  total_candidates: number;
-  effective_query: string;
-  results: Array<{
-    chunk_id: string;
-    source_path: string;
-    file_name: string;
-    score: number;
-    matched_by: string[];
-    vector_score?: number | null;
-    bm25_score?: number | null;
-  }>;
-}
 
 export interface ChatStreamCallbacks {
   /** 逐块追加的答案文本 */

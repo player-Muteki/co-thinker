@@ -26,6 +26,37 @@ interface Session {
   updated_at: string;
 }
 
+function RenameInput({
+  value,
+  onChange,
+  onCommit,
+  onCancel,
+  inputRef,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onCommit: () => void;
+  onCancel: () => void;
+  inputRef: React.Ref<HTMLInputElement>;
+}) {
+  return (
+    <div className="flex flex-1 items-center gap-1">
+      <input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") onCommit();
+          if (e.key === "Escape") onCancel();
+        }}
+        onBlur={onCommit}
+        onClick={(e) => e.stopPropagation()}
+        className="min-w-0 flex-1 rounded border border-[var(--accent)] bg-[var(--surface-bg)] px-1.5 py-0.5 text-sm text-[var(--text-primary)] outline-none"
+      />
+    </div>
+  );
+}
+
 export default function ProjectSidebar({
   collapsed,
   onToggle,
@@ -275,20 +306,13 @@ export default function ProjectSidebar({
                     }`}
                   >
                     {renamingId === s.id ? (
-                      <div className="flex flex-1 items-center gap-1">
-                        <input
-                          ref={renameRef}
-                          value={renameInput}
-                          onChange={(e) => setRenameInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") commitRename();
-                            if (e.key === "Escape") cancelRename();
-                          }}
-                          onBlur={commitRename}
-                          onClick={(e) => e.stopPropagation()}
-                          className="min-w-0 flex-1 rounded border border-[var(--accent)] bg-[var(--surface-bg)] px-1.5 py-0.5 text-sm text-[var(--text-primary)] outline-none"
-                        />
-                      </div>
+                      <RenameInput
+                        value={renameInput}
+                        onChange={setRenameInput}
+                        onCommit={commitRename}
+                        onCancel={cancelRename}
+                        inputRef={renameRef}
+                      />
                     ) : (
                       <div
                         className="flex-1 min-w-0"
