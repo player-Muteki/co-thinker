@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bot, ChevronDown, ChevronRight, Copy, Check, UserRound, ThumbsUp, ThumbsDown, RefreshCw, Pencil } from "lucide-react";
+import { Bot, ChevronDown, ChevronRight, Copy, Check, UserRound, ThumbsUp, ThumbsDown, RefreshCw } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -197,6 +197,7 @@ export default function ChatMessages({
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [feedback, setFeedback] = useState<Partial<Record<string, "like" | "dislike">>>({});
+  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -274,16 +275,25 @@ export default function ChatMessages({
               </div>
             )}
 
-            {/* Footer: edit button (user only) */}
-            {msg.role === "user" && onEdit && msg.content && (
+            {/* Footer: copy button (user only) */}
+            {msg.role === "user" && msg.content && (
               <div className="mt-2 flex justify-end">
                 <button
-                  onClick={() => onEdit(msg.content)}
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(msg.content);
+                      setCopiedMsgId(msg.id);
+                      setTimeout(() => setCopiedMsgId(null), 2000);
+                    } catch {}
+                  }}
                   className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-white/60 transition-colors hover:bg-white/10 hover:text-white"
-                  title="编辑"
+                  title="复制文本"
                 >
-                  <Pencil size={12} />
-                  编辑
+                  {copiedMsgId === msg.id ? (
+                    <><Check size={12} /> 已复制</>
+                  ) : (
+                    <><Copy size={12} /> 复制</>
+                  )}
                 </button>
               </div>
             )}
