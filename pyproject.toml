@@ -51,6 +51,7 @@ Source = "https://github.com/player-Muteki/lore"
 
 [project.scripts]
 lore = "cli:main"
+Lore = "cli:main"
 
 [tool.setuptools.dynamic]
 version = {attr = "__version__.__version__"}
