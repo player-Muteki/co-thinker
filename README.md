@@ -17,7 +17,7 @@
 - **可视化交互界面** — FastAPI 后端 + Next.js 前端双栏/三栏布局
 - **模型选择** — 聊天输入框和设置页支持切换模型（自动拉取 API 可用模型列表）
 - **配置管理** — Web 设置页可视化修改模型、API Key、Base URL 等配置
-- **CLI 工具链** — 一键初始化、启动、扫描、问答
+- **CLI 工具链** — 一键初始化、启动、扫描、问答（`lore` / `Lore`）
 
 ## 快速开始
 
@@ -42,6 +42,8 @@ mkdir my-kb && cd my-kb
 lore init                    # 创建 .lore/ 配置目录
 lore start                   # 启动 Web 界面
 ```
+
+> 命令不区分大小写：`lore` 和 `Lore` 均可使用。
 
 首次运行 `lore init` 时会提示填写 DeepSeek API Key，自动保存到 `~/.lorerc`。
 
@@ -86,7 +88,7 @@ lore/
 
 采取 **「CLI 启动 + WebUI 问答」** 的分层设计：
 
-- **CLI 层**（`lore init / start / scan / run`）—— 一条命令完成初始化、启动服务、扫描文档、单轮问答
+- **CLI 层**（`lore init / start / scan / run`，也支持 `Lore`）—— 一条命令完成初始化、启动服务、扫描文档、单轮问答
 - **WebUI 层**（Next.js + FastAPI + WebSocket）—— 启动后浏览器接管交互：文件树管理、标签标注、检索详情可视化、多轮对话流式问答
 
 二者共用同一套后端引擎，CLI 是入口，WebUI 是主场。
