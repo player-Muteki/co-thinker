@@ -3,7 +3,7 @@ import "katex/dist/katex.min.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Lore",
+  title: "Luna",
   description: "基于 RAG 的工作目录知识库系统",
 };
 

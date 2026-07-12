@@ -1,9 +1,9 @@
-﻿# Lore install script (Windows PowerShell)
+﻿# Luna install script (Windows PowerShell)
 # Downloads the latest .whl from GitHub and installs to a dedicated venv.
 #
 # Usage:
 #   powershell -ExecutionPolicy Bypass -File install.ps1
-#   powershell -ExecutionPolicy Bypass -File install.ps1 lore-0.0.11-py3-none-any.whl
+#   powershell -ExecutionPolicy Bypass -File install.ps1 luna-0.0.11-py3-none-any.whl
 # Online (no download):
 #   powershell -ExecutionPolicy Bypass -c "curl.exe -sSL URL | ..."
 
@@ -22,7 +22,7 @@ Write-Host "| |    / _ \| '__/ _ \"
 Write-Host "| |___| (_) | | |  __/"
 Write-Host "|______\___/|_|  \___|"
 Write-Host ""
-Write-Host "  Lore Installer"
+Write-Host "  Luna Installer"
 
 # ── Handle local .whl or auto-download ─────────────────────
 if ($WheelPath -and (Test-Path $WheelPath)) {
@@ -30,7 +30,7 @@ if ($WheelPath -and (Test-Path $WheelPath)) {
     Write-Info "Using local file: $WheelFile"
 } else {
     Write-Step "Fetching latest release from GitHub"
-    $Repo = "player-Muteki/lore"
+    $Repo = "player-Muteki/luna"
     Write-Info "Repo: $Repo"
 
     $ApiUrl = "https://api.github.com/repos/$Repo/releases/latest"
@@ -78,7 +78,7 @@ try {
     $zip.Dispose()
 } catch {}
 if (-not $WheelVersion) {
-    $WheelVersion = if ($WheelFile -match 'lore-(\d+\.\d+\.\d+)-') { $matches[1] } else { "0.0.0" }
+    $WheelVersion = if ($WheelFile -match 'luna-(\d+\.\d+\.\d+)-') { $matches[1] } else { "0.0.0" }
 }
 
 # ── 1. Check Python ────────────────────────────────────────
@@ -100,9 +100,9 @@ if (-not $Python) {
 }
 
 # ── 2. Install to dedicated venv (增量更新) ──────────────
-Write-Step "Installing Lore"
+Write-Step "Installing Luna"
 
-$VenDir = Join-Path $env:USERPROFILE ".lore"
+$VenDir = Join-Path $env:USERPROFILE ".Luna"
 $Pip = Join-Path $VenDir "Scripts\pip.exe"
 if (Test-Path $VenDir) {
     # 获取已安装版本
@@ -127,7 +127,7 @@ if (Test-Path $VenDir) {
         Write-Info "更新完成"
     }
 } else {
-    Write-Info "全新安装 Lore $WheelVersion ..."
+    Write-Info "全新安装 Luna $WheelVersion ..."
     & $Python -m venv $VenDir | Out-Null
     $pipResult = & $Pip install $WheelFile 2>&1
     if ($LASTEXITCODE -ne 0) {
@@ -151,12 +151,12 @@ if ($WebDir -and (Test-Path (Join-Path $WebDir "package.json"))) {
         if ($LASTEXITCODE -eq 0) {
             Write-Info "Frontend dependencies installed"
         } else {
-            Write-Warn "npm install failed, will retry on first 'lore start'"
+            Write-Warn "npm install failed, will retry on first 'luna start'"
         }
         Pop-Location
     } else {
         Write-Warn "npm not found. Install Node.js (https://nodejs.org/) for best experience"
-        Write-Warn "First 'lore start' will auto-install dependencies"
+        Write-Warn "First 'luna start' will auto-install dependencies"
     }
 } else {
     Write-Info "Web frontend package not detected, skipping frontend setup"
@@ -170,15 +170,15 @@ if (-not (Test-Path $BinDir)) {
     New-Item -ItemType Directory -Path $BinDir -Force | Out-Null
 }
 
-$BatPath = Join-Path $BinDir "lore.cmd"
-$CoThinkerExe = Join-Path $VenDir "Scripts\lore.exe"
-"@echo off`r`n`"$CoThinkerExe`" %*" | Set-Content -Path $BatPath
+$BatPath = Join-Path $BinDir "luna.cmd"
+$LunaExe = Join-Path $VenDir "Scripts\luna.exe"
+"@echo off`r`n`"$LunaExe`" %*" | Set-Content -Path $BatPath
 Write-Info "Created shortcut: $BatPath"
 
-$BatPathLore = Join-Path $BinDir "Lore.cmd"
-$CoThinkerExeLore = Join-Path $VenDir "Scripts\Lore.exe"
-"@echo off`r`n`"$CoThinkerExeLore`" %*" | Set-Content -Path $BatPathLore
-Write-Info "Created shortcut: $BatPathLore"
+$BatPathLuna = Join-Path $BinDir "Luna.cmd"
+$LunaExeLuna = Join-Path $VenDir "Scripts\Luna.exe"
+"@echo off`r`n`"$LunaExeLuna`" %*" | Set-Content -Path $BatPathLuna
+Write-Info "Created shortcut: $BatPathLuna"
 
 # ── 5. Check PATH ──────────────────────────────────────────
 Write-Step "Checking PATH"
@@ -189,21 +189,21 @@ if ($UserPath -notlike "*$BinDir*") {
     Write-Host "  Auto-adding to user environment variable PATH..."
     $newPath = $UserPath + ";" + $BinDir
     [Environment]::SetEnvironmentVariable("Path", $newPath, "User")
-    Write-Info "Added. Restart your terminal for lore to be available"
+    Write-Info "Added. Restart your terminal for luna to be available"
 } else {
     Write-Info "PATH already contains $BinDir"
 }
 
 # ── 6. Clean up old .local-pkgs files (dev setup residues) ────
-Write-Step "Cleaning up old lore files"
+Write-Step "Cleaning up old luna files"
 $LocalPkgsDirs = @(
-    "$env:USERPROFILE\code\lore\.local-pkgs",
-    "$env:TEMP\lore-main\.local-pkgs"
+    "$env:USERPROFILE\code\luna\.local-pkgs",
+    "$env:TEMP\luna-main\.local-pkgs"
 )
 foreach ($dir in $LocalPkgsDirs) {
     if (Test-Path $dir) {
-        Write-Info "清理 $dir 中的旧 lore 文件..."
-        $filesToRemove = @("cli.py", "__version__.py", "config.py", "lore.cmd", "Lore.cmd")
+        Write-Info "清理 $dir 中的旧 luna 文件..."
+        $filesToRemove = @("cli.py", "__version__.py", "config.py", "luna.cmd", "Luna.cmd")
         foreach ($file in $filesToRemove) {
             $f = Join-Path $dir $file
             if (Test-Path $f) { Remove-Item $f -Force -ErrorAction SilentlyContinue }
@@ -213,7 +213,7 @@ foreach ($dir in $LocalPkgsDirs) {
             $target = Join-Path $dir $d
             if (Test-Path $target) { Remove-Item $target -Recurse -Force -ErrorAction SilentlyContinue }
         }
-        Get-ChildItem "$dir\lore-*.dist-info" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
+        Get-ChildItem "$dir\luna-*.dist-info" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
         Write-Info "  ✅ 已清理"
     }
 }
@@ -224,6 +224,6 @@ Write-Host ""
 Write-Host "  To get started:"
 Write-Host ""
 Write-Host "    mkdir my-kb; cd my-kb"
-Write-Host "    lore init"
-Write-Host "    lore start"
+Write-Host "    luna init"
+Write-Host "    luna start"
 Write-Host ""

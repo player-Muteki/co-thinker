@@ -1,4 +1,4 @@
-"""Single source of truth for the Lore version."""
+"""Single source of truth for the Luna version."""
 
 __version__ = "0.0.1"
 

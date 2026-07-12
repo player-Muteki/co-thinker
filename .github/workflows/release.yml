@@ -61,7 +61,7 @@ jobs:
         run: |
           ls -lh dist/
           python -m pip install dist/*.whl
-          lore version
+          luna version
 
       - name: Create Release & upload assets
         env:

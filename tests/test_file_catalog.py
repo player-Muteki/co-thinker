@@ -25,7 +25,8 @@ from core.project import ProjectConfig
 
 def _make_catalog(tmp_path, **config_overrides) -> FileCatalog:
     """创建一个使用默认配置的 FileCatalog。"""
-    co_dir = tmp_path / ".lore"
+    co_dir = tmp_path / ".luna"
+    co_dir.mkdir(parents=True, exist_ok=True)
     (co_dir / "vectordb").mkdir(parents=True, exist_ok=True)
 
     config = ProjectConfig.load(co_dir / "config.toml")
@@ -181,15 +182,15 @@ class TestExclusions:
         assert "app.js" in {f["path"] for f in browse_files if not f["is_dir"]}
         assert all("node_modules" not in p.parts for p in ingest_files)
 
-    def test_lore_excluded(self, tmp_path) -> None:
-        """.lore 目录及其内容不应出现在扫描结果中。"""
-        (tmp_path / ".lore" / "config.toml").parent.mkdir(parents=True)
-        (tmp_path / ".lore" / "config.toml").write_text(
+    def test_luna_excluded(self, tmp_path) -> None:
+        """.luna 目录及其内容不应出现在扫描结果中。"""
+        (tmp_path / ".luna" / "config.toml").parent.mkdir(parents=True)
+        (tmp_path / ".luna" / "config.toml").write_text(
             "[project]\nmodel = 'test'\n", encoding="utf-8"
         )
         (tmp_path / "readme.md").write_text("x", encoding="utf-8")
 
-        config = ProjectConfig.load(tmp_path / ".lore" / "config.toml")
+        config = ProjectConfig.load(tmp_path / ".luna" / "config.toml")
         catalog = FileCatalog(
             root=tmp_path,
             exclude_patterns=config.exclude_patterns,
@@ -200,7 +201,7 @@ class TestExclusions:
         ingest_files = catalog.ingest_candidates()
 
         assert "readme.md" in {f["path"] for f in browse_files if not f["is_dir"]}
-        assert all(".lore" not in p.parts for p in ingest_files)
+        assert all(".luna" not in p.parts for p in ingest_files)
 
     def test_unsupported_extension_excluded(self, tmp_path) -> None:
         (tmp_path / "readme.md").write_text("x", encoding="utf-8")
@@ -243,8 +244,8 @@ class TestExclusions:
 
 class TestIndexedStatus:
     def test_browse_marks_indexed_files(self, tmp_path) -> None:
-        co_dir = tmp_path / ".lore"
-        (co_dir / "vectordb").mkdir(parents=True)
+        co_dir = tmp_path / ".luna"
+        (co_dir / "vectordb").mkdir(parents=True, exist_ok=True)
 
         (tmp_path / "indexed.md").write_text("# Indexed", encoding="utf-8")
         (tmp_path / "pending.md").write_text("# Pending", encoding="utf-8")

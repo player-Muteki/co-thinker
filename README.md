@@ -1,4 +1,4 @@
-# Lore
+# Luna
 
 基于 RAG 的个人知识问答系统 — 本地部署，围绕工作目录下的文档进行知识问答。
 
@@ -6,7 +6,7 @@
 
 实现一个基于文本查询的智能问答系统，支持多格式文档批量导入构建知识库，利用语义理解与 RAG 技术精准检索并生成自然流畅的答案，支持多轮对话上下文管理。
 
-与部署在本地的编码代理类似，Lore 也采取**本地部署模式**，围绕本地工作目录下的知识库源文件进行问答。采取 **CLI 启动 + WebUI 问答**的架构设计，兼顾终端用户的效率偏好与图形界面的交互体验。
+与部署在本地的编码代理类似，Luna 也采取**本地部署模式**，围绕本地工作目录下的知识库源文件进行问答。采取 **CLI 启动 + WebUI 问答**的架构设计，兼顾终端用户的效率偏好与图形界面的交互体验。
 
 ## 功能模块
 
@@ -17,7 +17,7 @@
 - **可视化交互界面** — FastAPI 后端 + Next.js 前端双栏/三栏布局
 - **模型选择** — 聊天输入框和设置页支持切换模型（自动拉取 API 可用模型列表）
 - **配置管理** — Web 设置页可视化修改模型、API Key、Base URL 等配置
-- **CLI 工具链** — 一键初始化、启动、扫描、问答（`lore` / `Lore`）
+- **CLI 工具链** — 一键初始化、启动、扫描、问答（`luna` / `Luna`）
 
 ## 快速开始
 
@@ -26,31 +26,31 @@
 **Linux / macOS**
 
 ```bash
-curl -fsSL 'https://cdn.jsdelivr.net/gh/player-Muteki/lore@main/install.sh' | bash
+curl -fsSL 'https://cdn.jsdelivr.net/gh/player-Muteki/luna@main/install.sh' | bash
 ```
 
 **Windows（PowerShell 管理员）**
 
 ```powershell
-powershell -ExecutionPolicy Bypass -c "curl.exe -fsSL -o $env:TEMP\install.ps1 'https://cdn.jsdelivr.net/gh/player-Muteki/lore@main/install.ps1'; & $env:TEMP\install.ps1"
+powershell -ExecutionPolicy Bypass -c "curl.exe -fsSL -o $env:TEMP\install.ps1 'https://cdn.jsdelivr.net/gh/player-Muteki/luna@main/install.ps1'; & $env:TEMP\install.ps1"
 ```
 
 ### 启动
 
 ```bash
 mkdir my-kb && cd my-kb
-lore init                    # 创建 .lore/ 配置目录
-lore start                   # 启动 Web 界面
+luna init                    # 创建 .luna/ 配置目录
+luna start                   # 启动 Web 界面
 ```
 
-> 命令不区分大小写：`lore` 和 `Lore` 均可使用。
+> 命令不区分大小写：`luna` 和 `Luna` 均可使用。
 
-首次运行 `lore init` 时会提示填写 DeepSeek API Key，自动保存到 `~/.lorerc`。
+首次运行 `luna init` 时会提示填写 DeepSeek API Key，自动保存到 `~/.lunarc`。
 
 ## 项目结构
 
 ```
-lore/
+luna/
 ├── api/                    # FastAPI 后端服务
 │   ├── server.py           # 应用入口与路由注册
 │   ├── deps.py             # 依赖注入
@@ -76,19 +76,19 @@ lore/
 └── README.md
 ```
 
-> 运行时数据（`.lore/`）由程序自动生成，不纳入版本控制。
+> 运行时数据（`.luna/`）由程序自动生成，不纳入版本控制。
 
 ## 设计亮点
 
 ### 本地部署 · 知识主权
 
-受当下编码代理（Coding Agent）本地部署模式的启发，Lore 采用**纯本地运行架构**。所有文档解析、向量索引、检索与推理均在用户自己的机器上完成，无需上传任何文件至云端。用户围绕**本地工作目录**下的源文件构建知识库，做到数据不出域、知识归自己。
+受当下编码代理（Coding Agent）本地部署模式的启发，Luna 采用**纯本地运行架构**。所有文档解析、向量索引、检索与推理均在用户自己的机器上完成，无需上传任何文件至云端。用户围绕**本地工作目录**下的源文件构建知识库，做到数据不出域、知识归自己。
 
 ### CLI 启航 · Web 远航
 
 采取 **「CLI 启动 + WebUI 问答」** 的分层设计：
 
-- **CLI 层**（`lore init / start / scan / run`，也支持 `Lore`）—— 一条命令完成初始化、启动服务、扫描文档、单轮问答
+- **CLI 层**（`luna init / start / scan / run`，也支持 `Luna`）—— 一条命令完成初始化、启动服务、扫描文档、单轮问答
 - **WebUI 层**（Next.js + FastAPI + WebSocket）—— 启动后浏览器接管交互：文件树管理、标签标注、检索详情可视化、多轮对话流式问答
 
 二者共用同一套后端引擎，CLI 是入口，WebUI 是主场。
@@ -104,8 +104,8 @@ lore/
 ## 开发
 
 ```bash
-git clone https://github.com/player-Muteki/lore.git
-cd lore
+git clone https://github.com/player-Muteki/luna.git
+cd luna
 bash setup.sh        # 创建虚拟环境 + 安装依赖
 ```
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# Lore dev environment setup
+# Luna dev environment setup
 # Run after cloning: bash setup.sh
 # ============================================================
 set -euo pipefail
@@ -82,10 +82,10 @@ if [[ -d web ]]; then
         if command -v npm &>/dev/null; then
             info "Running npm install in web/ ..."
             (cd web && npm install --quiet) && info "Web frontend dependencies installed" || \
-                warn "npm install 失败，可稍后运行 lore start 自动安装"
+                warn "npm install 失败，可稍后运行 luna start 自动安装"
         else
             warn "npm not found! Install Node.js first (https://nodejs.org/)"
-            warn "Or run 'lore start' later — it will auto-install deps"
+            warn "Or run 'luna start' later — it will auto-install deps"
         fi
     else
         info "web/node_modules/ already exists, skipping"
@@ -107,6 +107,6 @@ print('  Config OK')
 step "Dev environment ready!"
 echo ""
 echo "  Activate:     source .venv/bin/activate"
-echo "  Start:        lore start"
+echo "  Start:        luna start"
 echo "  Test:         pytest tests/ -v"
 echo "  Dependencies: pip list"

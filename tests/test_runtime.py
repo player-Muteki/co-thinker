@@ -32,8 +32,8 @@ class TestBootstrap:
         cwd.mkdir()
         runtime = WorkspaceRuntime.bootstrap(str(cwd))
         assert runtime.root == cwd.resolve()
-        assert (cwd / ".lore").exists()
-        assert (cwd / ".lore" / "vectordb").exists()
+        assert (cwd / ".luna").exists()
+        assert (cwd / ".luna" / "vectordb").exists()
 
 
 # ═══════════════════════════════════════════════════════════════════

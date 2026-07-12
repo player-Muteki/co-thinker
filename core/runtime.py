@@ -1,5 +1,5 @@
 """
-WorkspaceRuntime — Lore 运行时 module。
+WorkspaceRuntime — Luna 运行时 module。
 
 职责：
   1. 提供 WorkspaceRuntime.bootstrap() 作为统一出厂函数
@@ -18,7 +18,20 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.project import ProjectConfig
+    from core.protocols import (
+        ChatStore,
+        DocumentManifest,
+        EmbeddingModel,
+        Generator,
+        IngestEngine,
+        LLMClient,
+        Retriever,
+        VectorStore,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -162,39 +175,38 @@ class WorkspaceRuntime:
     # 改为 route 只做 HTTP/WebSocket adapter。
 
     @property
-    def llm(self) -> Any | None:
+    def llm(self) -> LLMClient | None:
         return self._ctx.llm
 
     @property
-    def vectorstore(self) -> Any | None:
+    def vectorstore(self) -> VectorStore | None:
         return self._ctx.vectorstore
 
     @property
-    def ingest_engine(self) -> Any | None:
+    def ingest_engine(self) -> IngestEngine | None:
         return self._ctx.ingest_engine
 
     @property
-    def retriever(self) -> Any | None:
+    def retriever(self) -> Retriever | None:
         return self._ctx.retriever
 
     @property
-    def generator(self) -> Any | None:
+    def generator(self) -> Generator | None:
         return self._ctx.generator
 
     @property
-    def chat_engine(self) -> Any | None:
+    def chat_engine(self) -> ChatStore | None:
         return self._ctx.chat_engine
 
     @property
-    def manifest(self) -> Any | None:
+    def manifest(self) -> DocumentManifest | None:
         return self._ctx.manifest
 
     @property
-    def config(self) -> Any:
+    def config(self) -> ProjectConfig:
         return self._ctx.config
 
     def save_config(self) -> None:
-        """持久化当前配置。"""
         self._ctx.save_config()
 
     @property
@@ -202,7 +214,7 @@ class WorkspaceRuntime:
         return self._ctx.root
 
     @property
-    def embedding_model(self) -> Any | None:
+    def embedding_model(self) -> EmbeddingModel | None:
         return self._ctx.embedding_model
 
     @property

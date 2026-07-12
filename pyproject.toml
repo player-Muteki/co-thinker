@@ -3,16 +3,16 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "lore"
+name = "luna"
 dynamic = ["version"]
 description = "基于 RAG 的个人知识问答系统"
 requires-python = ">=3.10"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Lore Contributors"},
+    {name = "Luna Contributors"},
 ]
-keywords = ["rag", "knowledge-base", "qa", "lore", "deepseek"]
+keywords = ["rag", "knowledge-base", "qa", "luna", "deepseek"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -41,17 +41,17 @@ dependencies = [
     "python-docx>=1.1.0",
     "pymupdf>=1.24.0",
     "python-pptx>=1.0.0",
-    # Version comparison (used by `lore upgrade`)
+    # Version comparison (used by `luna upgrade`)
     "packaging>=23.0",
 ]
 
 [project.urls]
-Homepage = "https://github.com/player-Muteki/lore"
-Source = "https://github.com/player-Muteki/lore"
+Homepage = "https://github.com/player-Muteki/luna"
+Source = "https://github.com/player-Muteki/luna"
 
 [project.scripts]
-lore = "cli:main"
-Lore = "cli:main"
+luna = "cli:main"
+Luna = "cli:main"
 
 [tool.setuptools.dynamic]
 version = {attr = "__version__.__version__"}

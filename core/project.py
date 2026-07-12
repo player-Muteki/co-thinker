@@ -1,9 +1,9 @@
 """
-ProjectContext — Lore 与工作目录的绑定桩。
+ProjectContext — Luna 与工作目录的绑定桩。
 
 每个进程绑定到一个 CWD，通过它访问所有资源。
 
-全局配置 (~/.lorerc)：
+全局配置 (~/.lunarc)：
   [auth]
   api_key = "sk-..."
 
@@ -20,9 +20,22 @@ import os
 import re as _re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
-GLOBAL_CONFIG_PATH = Path.home() / ".lorerc"
+if TYPE_CHECKING:
+    from core.protocols import (
+        ChatStore,
+        ConfigProvider,
+        DocumentManifest,
+        EmbeddingModel,
+        Generator,
+        IngestEngine,
+        LLMClient,
+        Retriever,
+        VectorStore,
+    )
+
+GLOBAL_CONFIG_PATH = Path.home() / ".lunarc"
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +43,7 @@ logger = logging.getLogger(__name__)
 
 
 def _default_exclude_patterns() -> list[str]:
-    return [".git", "__pycache__", "node_modules", ".venv", ".lore", ".DS_Store"]
+    return [".git", "__pycache__", "node_modules", ".venv", ".luna", ".DS_Store"]
 
 
 def _default_supported_extensions() -> list[str]:
@@ -49,7 +62,7 @@ def _default_supported_extensions() -> list[str]:
 
 
 def _load_global_config() -> dict[str, Any]:
-    """读取 ~/.lorerc 全局配置（不存在则返回空字典）。"""
+    """读取 ~/.lunarc 全局配置（不存在则返回空字典）。"""
     path = GLOBAL_CONFIG_PATH
     if not path.exists():
         return {}
@@ -82,7 +95,7 @@ def _global_model_base_url(global_cfg: dict[str, Any] | None = None) -> str:
 
 @dataclass
 class ProjectConfig:
-    """从 .lore/config.toml 读取的配置"""
+    """从 .luna/config.toml 读取的配置"""
     model: str = "deepseek-chat"
     base_url: str = "https://api.deepseek.com"
     embedding_model: str = ""
@@ -108,12 +121,12 @@ class ProjectConfig:
 
     @classmethod
     def load(cls, path: Path) -> "ProjectConfig":
-        """从项目 .lore/.config.toml 加载配置，合并全局 ~/.lorerc。
+        """从项目 .luna/.config.toml 加载配置，合并全局 ~/.lunarc。
 
         优先级（后者覆盖前者）：
           1. 默认值
-          2. 全局 ~/.lorerc 的 [project] 段
-          3. 项目 .lore/.config.toml 的 [project] 段
+          2. 全局 ~/.lunarc 的 [project] 段
+          3. 项目 .luna/.config.toml 的 [project] 段
         """
         known_keys = set(cls.__dataclass_fields__.keys())
 
@@ -174,16 +187,35 @@ class ProjectConfig:
             config_dict[field_name] = value
 
         import tomli_w as _tomli_w
-        content = "# Lore Project Configuration\n" + _tomli_w.dumps({"project": config_dict})
+        content = "# Luna Project Configuration\n" + _tomli_w.dumps({"project": config_dict})
         path.write_text(content, encoding="utf-8")
+
+
+class EnvironmentConfigProvider:
+    """从 os.environ → ~/.lunarc → .luna/.env 三层解析 API key。"""
+
+    def __init__(self, global_config: dict[str, Any], env_path: Path):
+        self._global_config = global_config
+        self._env_path = env_path
+
+    def get_api_key(self) -> str:
+        key = os.getenv("DEEPSEEK_API_KEY", "")
+        if not key:
+            key = self._global_config.get("auth", {}).get("api_key", "")
+        if not key:
+            if self._env_path.exists():
+                m = _re.search(r'^DEEPSEEK_API_KEY=(.+)$', self._env_path.read_text(encoding="utf-8"), _re.MULTILINE)
+                if m:
+                    key = m.group(1).strip().strip('"\'')
+        return key
 
 
 class ProjectContext:
     """绑定到一个工作目录，持有 RAG 引擎的所有状态。"""
 
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, config_provider: ConfigProvider | None = None):
         self.root = root.resolve()
-        self.co_dir = self.root / ".lore"
+        self.co_dir = self.root / ".luna"
         self.config_path = self.co_dir / "config.toml"
         self.env_path = self.co_dir / ".env"
         self.vectordb_dir = self.co_dir / "vectordb"
@@ -193,16 +225,17 @@ class ProjectContext:
 
         self.config = ProjectConfig.load(self.config_path)
         self._global_config: dict[str, Any] = _load_global_config()
+        self._config_provider = config_provider or EnvironmentConfigProvider(self._global_config, self.env_path)
 
         # 各种引擎（由外部工厂组装后设置）
-        self.vectorstore: Any | None = None
-        self.manifest: Any | None = None
-        self.embedding_model: Any | None = None
-        self.llm: Any | None = None
-        self.generator: Any | None = None
-        self.ingest_engine: Any | None = None
-        self.retriever: Any | None = None
-        self.chat_engine: Any | None = None
+        self.vectorstore: VectorStore | None = None
+        self.manifest: DocumentManifest | None = None
+        self.embedding_model: EmbeddingModel | None = None
+        self.llm: LLMClient | None = None
+        self.generator: Generator | None = None
+        self.ingest_engine: IngestEngine | None = None
+        self.retriever: Retriever | None = None
+        self.chat_engine: ChatStore | None = None
 
     @staticmethod
     def load(explicit: str | None = None) -> "ProjectContext":
@@ -222,7 +255,7 @@ class ProjectContext:
         return ctx
 
     def _ensure_co_dir(self) -> None:
-        """确保 .lore/ 及子目录存在。"""
+        """确保 .luna/ 及子目录存在。"""
         self.co_dir.mkdir(parents=True, exist_ok=True)
         self.vectordb_dir.mkdir(parents=True, exist_ok=True)
 
@@ -264,22 +297,34 @@ class ProjectContext:
         """持久化当前配置。"""
         self.config.save(self.config_path)
 
-    # ── API Key / LLM / Embedding ──────────────────────────────────
+    def update_global_auth(self, api_key: str | None = None, base_url: str | None = None) -> None:
+        """更新 ~/.lunarc 全局认证配置并重新初始化引擎。"""
+        import tomli_w
+
+        global_cfg = _load_global_config()
+        if api_key is not None:
+            global_cfg.setdefault("auth", {})
+            global_cfg["auth"]["api_key"] = api_key
+            os.environ["DEEPSEEK_API_KEY"] = api_key
+        if base_url is not None:
+            global_cfg.setdefault("model", {})
+            global_cfg["model"]["base_url"] = base_url
+        GLOBAL_CONFIG_PATH.write_text(tomli_w.dumps(global_cfg), encoding="utf-8")
+
+        self._global_config = global_cfg
+        try:
+            self.llm = self.get_llm()
+        except Exception:
+            self.llm = None
+        self.embedding_model = self.get_embedding_model()
+        self.setup_engines()
 
     def get_api_key(self) -> str:
-        """获取 API Key，优先级：进程环境变量 > ~/.lorerc > .lore/.env（兼容旧版）。"""
-        key = os.getenv("DEEPSEEK_API_KEY", "")
-        if not key:
-            key = self._global_config.get("auth", {}).get("api_key", "")
-        if not key:
-            if self.env_path.exists():
-                m = _re.search(r'^DEEPSEEK_API_KEY=(.+)$', self.env_path.read_text(encoding="utf-8"), _re.MULTILINE)
-                if m:
-                    key = m.group(1).strip().strip('"\'')
-        return key
+        """获取 API Key，委托给 ConfigProvider。"""
+        return self._config_provider.get_api_key()
 
     def get_llm(self) -> Any:
-        """创建 OpenAI 兼容客户端。base_url 优先级：全局 ~/.lorerc > 项目配置 > 默认值。"""
+        """创建 OpenAI 兼容客户端。base_url 优先级：全局 ~/.lunarc > 项目配置 > 默认值。"""
         api_key = self.get_api_key()
         if not api_key:
             raise ValueError("DEEPSEEK_API_KEY 未设置")

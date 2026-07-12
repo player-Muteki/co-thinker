@@ -18,7 +18,7 @@ export default function FilesPage() {
   const [autoIndex, setAutoIndex] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem("lore-auto-index");
+    const stored = localStorage.getItem("luna-auto-index");
     if (stored !== null) {
       setAutoIndex(stored === "true");
     }

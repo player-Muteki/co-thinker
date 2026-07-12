@@ -1,1 +1,1 @@
-"""Lore HTTP API — FastAPI 层"""
+"""Luna HTTP API — FastAPI 层"""

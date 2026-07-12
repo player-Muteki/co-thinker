@@ -29,4 +29,4 @@
 
 ---
 
-[v0.0.1]: https://github.com/player-Muteki/lore/releases/tag/v0.0.1
+[v0.0.1]: https://github.com/player-Muteki/luna/releases/tag/v0.0.1

@@ -19,16 +19,16 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """应用生命周期管理。"""
-    logger.info("Starting Lore API...")
+    logger.info("Starting Luna API...")
     from api.deps import get_project_context
     ctx = get_project_context()
     logger.info("Project root: %s", ctx.root)
     yield
-    logger.info("Lore API shutting down.")
+    logger.info("Luna API shutting down.")
 
 
 app = FastAPI(
-    title="Lore API",
+    title="Luna API",
     description="工作目录绑定型 RAG 知识库系统 API",
     version=__version__,
     lifespan=lifespan,
@@ -58,7 +58,7 @@ app.include_router(config.router, prefix="/api")
 @app.get("/")
 async def root():
     return {
-        "name": "Lore API",
+        "name": "Luna API",
         "version": __version__,
         "endpoints": {
             "GET /api/project": "项目信息",

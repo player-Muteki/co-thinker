@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Eye, EyeOff, Check, Loader2, Wifi, WifiOff } from "lucide-react";
 
-const AUTO_INDEX_KEY = "lore-auto-index";
-const MODEL_KEY = "lore-model";
+const AUTO_INDEX_KEY = "luna-auto-index";
+const MODEL_KEY = "luna-model";
 
 export default function SettingsPage() {
   const [autoIndex, setAutoIndex] = useState(true);

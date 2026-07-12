@@ -3,16 +3,19 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Any, Iterable
+from typing import Any, Iterable, TYPE_CHECKING
 
 from core.exceptions import LLMRetryError
 from core.project import ProjectConfig
 from core.retriever import RetrievalResults
 
+if TYPE_CHECKING:
+    from core.protocols import LLMClient
+
 logger = logging.getLogger(__name__)
 
-DEFAULT_RAG_SYSTEM_PROMPT = """你是 Lore，一个基于个人知识库的问答助手。
-You are Lore, a Q&A assistant grounded in a personal knowledge base.
+DEFAULT_RAG_SYSTEM_PROMPT = """你是 Luna，一个基于个人知识库的问答助手。
+You are Luna, a Q&A assistant grounded in a personal knowledge base.
 
 必须遵守以下规则：
 1.  仅基于 <context> 中提供的知识库片段来回答。
@@ -72,11 +75,8 @@ class GenerationResult:
     error: str | None = None
 
 
-from core.exceptions import LLMRetryError
-
-
 def _llm_call_with_retry(
-    llm: Any,
+    llm: LLMClient,
     model: str,
     messages: list[dict[str, str]],
     temperature: float,
@@ -125,7 +125,7 @@ def _llm_call_with_retry(
 
 
 class RAGGenerator:
-    def __init__(self, config: ProjectConfig, llm: Any | None = None, prompt_template: str | None = None):
+    def __init__(self, config: ProjectConfig, llm: LLMClient | None = None, prompt_template: str | None = None):
         self.config = config
         self.llm = llm
         self.prompt_template = prompt_template or DEFAULT_RAG_SYSTEM_PROMPT
