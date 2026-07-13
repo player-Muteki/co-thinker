@@ -46,13 +46,14 @@ app.add_middleware(
 )
 
 # 注册路由
-from api.routes import files, ingest, sessions, chat, config
+from api.routes import files, ingest, sessions, chat, config, agent
 
 app.include_router(files.router, prefix="/api")
 app.include_router(ingest.router, prefix="/api")
 app.include_router(sessions.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
 app.include_router(config.router, prefix="/api")
+app.include_router(agent.router, prefix="/api")
 
 
 @app.get("/")
@@ -72,5 +73,11 @@ async def root():
             "PATCH /api/sessions/{id}": "重命名会话",
             "GET /api/stats": "索引统计",
             "WS /api/ws/chat": "流式问答",
+            "POST /api/agent/run": "运行 Agent（SSE 流式）",
+            "GET /api/agent/approvals": "Agent 审批列表",
+            "POST /api/agent/approve/{id}": "批准工具调用",
+            "POST /api/agent/reject/{id}": "拒绝工具调用",
+            "GET /api/agent/sessions": "Agent 会话列表",
+            "GET /api/agent/sessions/{id}": "Agent 会话详情",
         },
     }
