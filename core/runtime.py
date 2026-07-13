@@ -21,8 +21,11 @@ from pathlib import Path
 from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from core.agent_runtime import RustAgentRuntime
+    from core.agent_tools import KnowledgeToolset
     from core.project import ProjectConfig
     from core.protocols import (
+        AgentToolRuntime,
         ChatStore,
         DocumentManifest,
         EmbeddingModel,
@@ -64,6 +67,8 @@ class WorkspaceRuntime:
     def __init__(self, ctx: Any):
         """通常通过 ``bootstrap()`` 构造，不应直接调用。"""
         self._ctx = ctx
+        self._agent_toolset: KnowledgeToolset | None = None
+        self._agent_runtime: RustAgentRuntime | None = None
     # ── 公开 ctx 属性 ────────────────────────────────────────────
 
     @property
@@ -167,6 +172,20 @@ class WorkspaceRuntime:
         if self._ctx.ingest_engine:
             return self._ctx.ingest_engine.get_index_stats()
         return {"document_count": 0, "indexed_document_count": 0, "chunk_count": 0}
+
+    def get_agent_toolset(self) -> "KnowledgeToolset":
+        if self._agent_toolset is None:
+            from core.agent_tools import KnowledgeToolset
+
+            self._agent_toolset = KnowledgeToolset(self)
+        return self._agent_toolset
+
+    def get_agent_runtime(self) -> "AgentToolRuntime":
+        if self._agent_runtime is None:
+            from core.agent_runtime import RustAgentRuntime
+
+            self._agent_runtime = RustAgentRuntime(toolset=self.get_agent_toolset())
+        return self._agent_runtime
 
     # ── 向后兼容委托属性 ──────────────────────────────────────────
     #

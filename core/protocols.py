@@ -87,3 +87,7 @@ class IngestEngine(Protocol):
 class ConfigProvider(Protocol):
     """Protocol for providing API keys from config sources."""
     def get_api_key(self) -> str: ...
+
+
+class AgentToolRuntime(Protocol):
+    def call_tool(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]: ...

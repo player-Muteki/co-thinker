@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 import os
+import json
 import shutil
 import subprocess
 import sys
@@ -108,11 +109,11 @@ def _banner(version: str) -> str:
     return BANNER.format(version=version)
 
 
-def _setup_project_context() -> object:
+def _setup_project_context(explicit_root: str | None = None) -> object:
     """Create and wire up a WorkspaceRuntime with all engines."""
     from core.runtime import WorkspaceRuntime
 
-    return WorkspaceRuntime.bootstrap()
+    return WorkspaceRuntime.bootstrap(explicit_root)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -237,7 +238,7 @@ def run(
     typer.echo(f"[Q] {query}")
     typer.echo("")
 
-    runtime = _setup_project_context()
+    runtime = _setup_project_context(dir)
 
     # 一次性问答（自动处理索引 → 检索 → 生成）
     result = runtime.ask(query)
@@ -276,6 +277,34 @@ def run(
         typer.echo("── 引用来源 ──")
         for i, ref in enumerate(result.references[:5], 1):
             typer.echo(f"  [{i}] {ref.get('source_path', 'unknown')} (score: {ref.get('score', 0):.3f})")
+
+
+@app.command()
+def tool(
+    name: str = typer.Argument(..., help="工具名"),
+    arguments: str = typer.Argument("{}", help="JSON 参数"),
+    dir: str | None = typer.Option(None, "--dir", help="项目目录（默认当前目录）"),
+) -> None:
+    """通过 Rust agent runtime 调用知识库工具。"""
+    try:
+        parsed_arguments = json.loads(arguments)
+    except json.JSONDecodeError as exc:
+        typer.echo(f"[ERROR] arguments 不是合法 JSON: {exc}")
+        raise typer.Exit(1)
+
+    if not isinstance(parsed_arguments, dict):
+        typer.echo("[ERROR] arguments 必须是 JSON object")
+        raise typer.Exit(1)
+
+    runtime = _setup_project_context(dir)
+
+    try:
+        response = runtime.get_agent_runtime().call_tool(name, parsed_arguments)
+    except Exception as exc:
+        typer.echo(f"[ERROR] {exc}")
+        raise typer.Exit(1)
+
+    typer.echo(json.dumps(response, ensure_ascii=False, indent=2))
 
 
 @app.command()
