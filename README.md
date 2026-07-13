@@ -73,6 +73,7 @@ luna/
 ├── pyproject.toml          # 项目元数据与依赖声明
 ├── install.sh              # 一键安装脚本（Linux / macOS）
 ├── install.ps1             # 一键安装脚本（Windows）
+├── LICENSE                 # MIT 许可证
 └── README.md
 ```
 
@@ -111,4 +112,4 @@ bash setup.sh        # 创建虚拟环境 + 安装依赖
 
 ## License
 
-MIT
+[MIT](LICENSE)
