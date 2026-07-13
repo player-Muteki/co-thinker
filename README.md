@@ -18,6 +18,8 @@
 - **模型选择** — 聊天输入框和设置页支持切换模型（自动拉取 API 可用模型列表）
 - **配置管理** — Web 设置页可视化修改模型、API Key、Base URL 等配置
 - **CLI 工具链** — 一键初始化、启动、扫描、问答（`luna` / `Luna`）
+- **Agent 智能体** — 知识库自动化管理：计划、审批、执行闭环（CLI + API + WebUI）
+- **Rust 工具运行时** — Rust JSON-RPC 策略引擎，Python KnowledgeToolset 执行层
 
 ## 快速开始
 
@@ -47,32 +49,170 @@ luna start                   # 启动 Web 界面
 
 首次运行 `luna init` 时会提示填写 DeepSeek API Key，自动保存到 `~/.lunarc`。
 
+## Agent 智能体
+
+Luna 内置知识库 Agent，可自动化执行知识库管理任务。
+
+### CLI 使用
+
+```bash
+# 只读查询（获取知识库统计）
+luna agent run "检查知识库状态"
+
+# 自动执行低风险变更
+luna agent run "索引新文件" --yes
+
+# 计划模式（只读预览，不执行变更）
+luna agent run "重建索引" --plan
+
+# 执行后生成 LLM 总结
+luna agent run "检查知识库状态" --respond
+
+# JSONL 格式输出（适合管道处理）
+luna agent run "检查知识库状态" --json
+
+# 审批管理
+luna agent approvals            # 列出待审批
+luna agent approve appr_xxx     # 批准并执行
+luna agent reject appr_xxx      # 拒绝
+
+# 会话历史
+luna agent sessions             # 列出会话
+luna agent show ags_xxx         # 查看会话事件
+```
+
+### 工具集
+
+| 工具 | 类别 | 说明 |
+|------|------|------|
+| `kb_get_stats` | 只读 | 知识库索引统计 |
+| `kb_list_files` | 只读 | 工作区文件列表 |
+| `kb_list_documents` | 只读 | 已索引文档列表 |
+| `kb_search` | 只读 | 知识库内容搜索 |
+| `kb_index_files` | 变更 | 索引指定文件 |
+| `kb_rebuild_index` | 变更 | 全量重建索引 |
+| `kb_delete_document` | 变更 | 删除文档 |
+| `kb_update_tags` | 变更 | 更新文档标签 |
+| `kb_clear_index` | 危险 | 清空索引（默认禁止） |
+
+### 三种模式
+
+- **默认模式** — 执行工具 → 变更需审批
+- **计划模式** (`--plan`) — 只读预览计划，不变更
+- **目标模式** (`--goal`) — 预留扩展
+
+### 审批策略
+
+| 策略 | 说明 |
+|------|------|
+| `ask`（默认） | 变更工具等待人工审批 |
+| `auto_safe_mutation` (`--yes`) | 自动执行 `kb_index_files` / `kb_update_tags` |
+
+危险工具（`kb_clear_index`、`shell_exec`）始终拒绝，不可审批。
+
+### API 端点
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/agent/run` | 运行 Agent（SSE 流式事件） |
+| GET | `/api/agent/approvals` | 审批列表 |
+| POST | `/api/agent/approve/{id}` | 批准并执行 |
+| POST | `/api/agent/reject/{id}` | 拒绝 |
+| GET | `/api/agent/sessions` | 会话列表 |
+| GET | `/api/agent/sessions/{id}` | 会话事件详情 |
+
+### 架构
+
+```
+┌─────────────────────────────────────────────────┐
+│  CLI (luna agent run)     Web UI (/agent)       │
+│         │                        │              │
+│         ▼                        ▼              │
+│  ┌──────────────────────────────────────────┐   │
+│  │           AgentWorkflow                  │   │
+│  │  ┌──────────┐  ┌──────────────┐         │   │
+│  │  │Planner   │  │Executor      │         │   │
+│  │  │(规则匹配) │  │(策略门控)    │         │   │
+│  │  └──────────┘  └──────────────┘         │   │
+│  │  ┌──────────┐  ┌──────────────┐         │   │
+│  │  │Approval  │  │Session Store │         │   │
+│  │  │(持久化)  │  │(JSONL 日志)  │         │   │
+│  │  └──────────┘  └──────────────┘         │   │
+│  └──────────────────────────────────────────┘   │
+│           │                        │              │
+│           ▼                        ▼              │
+│  ┌──────────────┐       ┌──────────────┐        │
+│  │Rust Runtime  │       │Knowledge     │        │
+│  │(策略引擎)    │       │Toolset       │        │
+│  │JSON-RPC/stdio│       │(Python 执行) │        │
+│  └──────────────┘       └──────────────┘        │
+└─────────────────────────────────────────────────┘
+```
+
 ## 项目结构
 
 ```
 luna/
-├── api/                    # FastAPI 后端服务
+├── api/                    # FastAPI 后端
 │   ├── server.py           # 应用入口与路由注册
 │   ├── deps.py             # 依赖注入
-│   └── routes/             # API 路由（chat / config / files / ingest / sessions）
+│   └── routes/             # API 路由
+│       ├── agent.py        # Agent SSE/REST 端点
+│       ├── chat.py         # WebSocket 流式问答
+│       ├── config.py       # 配置管理
+│       ├── files.py        # 文件列表
+│       ├── ingest.py       # 索引管理
+│       └── sessions.py     # 聊天会话
 ├── core/                   # 核心业务逻辑
-│   ├── chat_workflow.py    # 聊天工作流引擎
-│   ├── generator.py        # 答案生成（LLM 调用）
+│   ├── agent_approval.py   # 审批持久化存储
+│   ├── agent_contracts.py  # 工具合约定义
+│   ├── agent_events.py     # 事件协议模型
+│   ├── agent_executor.py   # 策略门控执行器
+│   ├── agent_modes.py      # Agent 模式与审批策略
+│   ├── agent_plan_store.py # 计划持久化
+│   ├── agent_planner.py    # 规则匹配规划器
+│   ├── agent_runtime.py    # Rust runtime Python 适配器
+│   ├── agent_session.py    # 会话事件日志
+│   ├── agent_tools.py      # 知识库工具集
+│   ├── agent_workflow.py   # Agent 工作流编排
+│   ├── chat_engine.py      # 对话引擎
+│   ├── chat_workflow.py    # 聊天工作流
+│   ├── generator.py        # LLM 答案生成
 │   ├── retriever.py        # 混合检索（向量 + BM25）
 │   ├── ingest.py           # 文档导入与索引
-│   ├── parser.py           # 文档解析（PDF/DOCX/PPTX/文本）
-│   ├── file_catalog.py     # 文件目录索引管理
-│   ├── runtime.py          # 运行时统一入口（WorkspaceRuntime）
-│   └── project.py          # 项目上下文与配置管理
+│   ├── parser.py           # 文档解析
+│   ├── file_catalog.py     # 文件目录管理
+│   ├── runtime.py          # WorkspaceRuntime 统一入口
+│   └── project.py          # 项目配置管理
+├── crates/                 # Rust 工作区
+│   └── luna-agent-runtime/ # Agent 工具策略引擎
+│       ├── src/
+│       │   ├── main.rs     # stdio JSON-RPC 循环
+│       │   ├── protocol.rs # 请求/响应类型
+│       │   ├── policy.rs   # 工具策略评估
+│       │   ├── tools.rs    # 工具注册表与 schema
+│       │   └── jsonrpc.rs  # JSON-RPC 2.0 协议
+│       └── Cargo.toml
 ├── web/                    # Next.js 前端
 │   ├── app/                # 页面路由
+│   │   ├── (workspace)/
+│   │   │   ├── agent/      # Agent 面板
+│   │   │   ├── chat/       # 对话页
+│   │   │   ├── files/      # 文件管理
+│   │   │   └── settings/   # 设置
+│   │   ├── layout.tsx
+│   │   └── page.tsx
 │   ├── components/         # UI 组件
-│   └── lib/                # API 与 WebSocket 客户端
-├── cli.py                  # CLI 入口（init / start / run / scan）
+│   │   └── workspace/
+│   │       └── ProjectSidebar.tsx
+│   └── lib/
+│       └── api.ts          # API 客户端
+├── cli.py                  # CLI 入口
 ├── __version__.py          # 版本号
-├── pyproject.toml          # 项目元数据与依赖声明
-├── install.sh              # 一键安装脚本（Linux / macOS）
-├── install.ps1             # 一键安装脚本（Windows）
+├── pyproject.toml           # 项目元数据
+├── Cargo.toml              # Rust 工作区
+├── install.sh              # Linux/macOS 安装脚本
+├── install.ps1             # Windows 安装脚本
 ├── LICENSE                 # MIT 许可证
 └── README.md
 ```
@@ -102,12 +242,22 @@ luna/
 
 内置查询预处理管道，自动检测短查询/指代词，结合对话历史进行上下文增强，确保多轮问答连贯性。
 
+### Agent 智能体
+
+Luna 的 Agent 系统围绕 **工具合约 + 执行策略 + 审批工作流** 三条主线设计：
+
+- **工具合约** — 每个工具声明 name / description / category / input_schema，Python 和 Rust 端统一
+- **三级策略** — 只读（自动允许）/ 变更（需要审批）/ 危险（永久禁止）
+- **审批闭环** — 计划 → 审批请求 → 批准/拒绝 → 执行 → 标记完成，全程持久化
+- **Rust/Python 混合** — Rust 负责策略引擎（JSON-RPC over stdio），Python 负责知识库操作，降低延迟的同时保持灵活性
+
 ## 开发
 
 ```bash
 git clone https://github.com/player-Muteki/luna.git
 cd luna
-bash setup.sh        # 创建虚拟环境 + 安装依赖
+bash setup.sh                # 创建虚拟环境 + 安装 Python 依赖
+cargo build --workspace      # 编译 Rust agent runtime
 ```
 
 ## License
