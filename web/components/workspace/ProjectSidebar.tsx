@@ -15,6 +15,7 @@ import {
   Settings,
   Check,
   X,
+  Bot,
 } from "lucide-react";
 import { getProjectInfo, sessions as sessionsApi, type ProjectInfo } from "@/lib/api";
 
@@ -222,6 +223,17 @@ export default function ProjectSidebar({
           >
             <MessageSquare size={18} />
           </Link>
+          <Link
+            href="/agent"
+            title="Agent"
+            className={`grid h-10 w-10 place-items-center rounded-md transition-colors ${
+              pathname.includes("/agent")
+                ? "bg-[var(--sidebar-active)] text-[var(--sidebar-fg)]"
+                : inactiveNavClass
+            }`}
+          >
+            <Bot size={18} />
+          </Link>
           <button
             onClick={createSession}
             title="新建会话"
@@ -283,6 +295,17 @@ export default function ProjectSidebar({
             >
               <MessageSquare size={16} />
               <span>问答</span>
+            </Link>
+            <Link
+              href="/agent"
+              className={`${navItemClass} ${
+                pathname.includes("/agent")
+                  ? "bg-[var(--sidebar-active)] text-[var(--sidebar-fg)]"
+                  : inactiveNavClass
+              }`}
+            >
+              <Bot size={16} />
+              <span>Agent</span>
             </Link>
           </nav>
 

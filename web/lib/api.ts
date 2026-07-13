@@ -289,3 +289,149 @@ export const sessions = {
     );
   },
 };
+
+// ── Agent ──────────────────────────────────────────────────────
+
+export interface AgentApproval {
+  id: string;
+  session_id: string;
+  tool_name: string;
+  arguments: Record<string, unknown>;
+  category: string;
+  reason: string;
+  status: string;
+  created_at: string;
+  decided_at: string | null;
+}
+
+export interface AgentSessionMeta {
+  id: string;
+  goal: string;
+  mode: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  event_count: number;
+}
+
+export interface AgentEvent {
+  type: string;
+  session_id: string;
+  message?: string;
+  tool_name?: string;
+  arguments?: Record<string, unknown>;
+  body?: Record<string, unknown>;
+  approval_id?: string;
+  plan_id?: string;
+  error?: string;
+  created_at: string;
+}
+
+/** 运行 Agent 并通过 SSE 流式获取事件 */
+export function runAgent(
+  goal: string,
+  options?: {
+    mode?: string;
+    approval_mode?: string;
+    generate_response?: boolean;
+    onEvent?: (event: AgentEvent) => void;
+    onDone?: () => void;
+    onError?: (error: string) => void;
+  }
+): { abort: () => void } {
+  const controller = new AbortController();
+
+  fetch(`${API_BASE}/api/agent/run`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      goal,
+      mode: options?.mode ?? "default",
+      approval_mode: options?.approval_mode ?? "ask",
+      generate_response: options?.generate_response ?? false,
+    }),
+    signal: controller.signal,
+  })
+    .then(async (res) => {
+      if (!res.ok) {
+        const body = await res.text();
+        options?.onError?.(`API ${res.status}: ${body}`);
+        return;
+      }
+      const reader = res.body?.getReader();
+      if (!reader) {
+        options?.onError?.("No response body");
+        return;
+      }
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith(":")) continue;
+          if (trimmed.startsWith("data: ")) {
+            const data = trimmed.slice(6);
+            try {
+              const event: AgentEvent = JSON.parse(data);
+              options?.onEvent?.(event);
+            } catch {
+              // ignore parse errors
+            }
+          }
+        }
+      }
+    })
+    .catch((err) => {
+      if (err.name !== "AbortError") {
+        options?.onError?.(err.message ?? String(err));
+      }
+    })
+    .finally(() => {
+      options?.onDone?.();
+    });
+
+  return { abort: () => controller.abort() };
+}
+
+/** 获取 Agent 审批列表 */
+export function getAgentApprovals(): Promise<{
+  approvals: AgentApproval[];
+}> {
+  return request("/api/agent/approvals");
+}
+
+/** 批准 Agent 工具调用 */
+export function approveAgentTool(
+  approvalId: string
+): Promise<{ approval: AgentApproval; events: AgentEvent[] }> {
+  return request(`/api/agent/approve/${approvalId}`, { method: "POST" });
+}
+
+/** 拒绝 Agent 工具调用 */
+export function rejectAgentTool(
+  approvalId: string
+): Promise<{ approval: AgentApproval }> {
+  return request(`/api/agent/reject/${approvalId}`, { method: "POST" });
+}
+
+/** 获取 Agent 会话列表 */
+export function getAgentSessions(): Promise<{
+  sessions: AgentSessionMeta[];
+}> {
+  return request("/api/agent/sessions");
+}
+
+/** 获取 Agent 会话详情 */
+export function getAgentSession(
+  sessionId: string
+): Promise<{ events: AgentEvent[] }> {
+  return request(`/api/agent/sessions/${sessionId}`);
+}
