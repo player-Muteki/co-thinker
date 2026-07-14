@@ -226,8 +226,8 @@ else
     fi
 
     # 验证安装
-    if [[ -f "$RUST_BIN" ]]; then
-        info "Rust runtime 就绪: $("$RUST_BIN" --help 2>/dev/null || echo "OK")"
+    if [[ -x "$RUST_BIN" ]]; then
+        info "Rust runtime 已安装: $RUST_BIN"
     else
         warn "Rust runtime 未安装，agent 工具将使用纯 Python 降级模式运行"
     fi
