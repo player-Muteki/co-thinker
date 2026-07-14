@@ -33,21 +33,43 @@ if ($WheelPath -and (Test-Path $WheelPath)) {
     $Repo = "player-Muteki/luna"
     Write-Info "Repo: $Repo"
 
-    $ApiUrl = "https://api.github.com/repos/$Repo/releases/latest"
+    # Try API first
+    $TagName = $null
     try {
+        $ApiUrl = "https://api.github.com/repos/$Repo/releases/latest"
         $ReleaseData = Invoke-RestMethod -Uri $ApiUrl -Headers @{ "Accept" = "application/json" }
+        $Asset = $ReleaseData.assets | Where-Object { $_.name -like "*.whl" } | Select-Object -First 1
+        if ($Asset) {
+            $WheelUrl = $Asset.browser_download_url
+        }
+        $TagName = $ReleaseData.tag_name
     } catch {
-        Write-Error "Failed to fetch release info: $_"
+        Write-Warn "GitHub API 请求失败（可能速率限制），尝试其他方式获取版本..."
+    }
+
+    # Fallback: use git ls-remote --tags
+    if (-not $WheelUrl) {
+        try {
+            $TagLines = & git ls-remote --tags --ref "https://github.com/$Repo.git" 2>&1
+            $TagName = ($TagLines | Select-String 'v[0-9]+\.[0-9]+\.[0-9]+$' | ForEach-Object { $_.Matches.Value } | Sort-Object -Descending | Select-Object -First 1)
+        } catch {
+            Write-Warn "git ls-remote 也失败，将尝试从 main 分支源码安装"
+        }
+    }
+
+    # Construct wheel URL from tag
+    if (-not $WheelUrl -and $TagName) {
+        $TagVersion = $TagName.TrimStart("v")
+        $WheelUrl = "https://github.com/$Repo/releases/download/$TagName/luna-$TagVersion-py3-none-any.whl"
+        Write-Info "Constructed URL: $WheelUrl"
+    }
+
+    if (-not $WheelUrl) {
+        Write-Error "无法获取最新 Release 信息。请手动下载 wheel 后运行: install.ps1 <path-to-whl>"
+        Write-Error "下载地址: https://github.com/$Repo/releases/latest"
         exit 1
     }
 
-    $Asset = $ReleaseData.assets | Where-Object { $_.name -like "*.whl" } | Select-Object -First 1
-    if (-not $Asset) {
-        Write-Error "No .whl file found in latest release"
-        exit 1
-    }
-
-    $WheelUrl = $Asset.browser_download_url
     $WheelName = Split-Path $WheelUrl -Leaf
     $WheelFile = Join-Path $env:TEMP $WheelName
     Write-Info "Downloading: $WheelName"
@@ -55,7 +77,7 @@ if ($WheelPath -and (Test-Path $WheelPath)) {
     try {
         Invoke-WebRequest -Uri $WheelUrl -OutFile $WheelFile -UseBasicParsing
     } catch {
-        Write-Error "Download failed: $_"
+        Write-Error "下载失败: $_"
         exit 1
     }
     Write-Info "Download complete"
